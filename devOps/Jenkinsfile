@@ -1,0 +1,76 @@
+String str = BRANCH_NAME == "master" ? "0 0 * * *" : ""
+
+pipeline{
+    agent {
+        kubernetes {
+            cloud 'kubernetes-new'
+            inheritFrom 'centos-docker-node'
+        }
+    }
+    triggers {
+        cron(str)
+    }
+    options{
+        ansiColor('xterm')
+        disableConcurrentBuilds(abortPrevious: true)
+        timestamps()
+        skipDefaultCheckout(true)
+        buildDiscarder(logRotator(numToKeepStr:'10'))
+    }
+    environment {
+        yasdb_repo = "cod-x"
+        yasdb_branch = "master"
+    }
+    stages{
+        stage("build"){
+            steps{
+                cleanWs()
+                checkout scm
+                dir("ciscript"){ git url: 'git@git.yasdb.com:test1/ciscript.git', branch: "master" }
+                //sh """
+                //set -ex
+                //bash ${WORKSPACE}/ciscript/L2_L3_docker/L2_Ystream_compile_pkg.sh Ystream_Merge_Build ${BRANCH_NAME}
+                //"""
+                sh """
+                wget -q -r -np -nd -R .whl,.jar,.html http://192.168.3.112:25880/ci_public_file/tools/jdk-11.0.19_linux-x64_bin.tar.gz
+                wget -q -r -np -nd -R .whl,.jar,.html http://192.168.3.112:25880/ci_public_file/tools/apache-maven-3.8.8-bin.tar.gz
+
+                sudo tar -xf jdk-11.0.19_linux-x64_bin.tar.gz -C /opt/
+                sudo tar -xf apache-maven-3.8.8-bin.tar.gz -C /opt/
+                sudo ln -sf /opt/apache-maven-3.8.8/bin/mvn /usr/bin/mvn
+                export JAVA_HOME=/opt/jdk-11.0.19
+                export PATH=\${JAVA_HOME}/bin:\$PATH
+                export MAVEN_HOME=/opt/apache-maven-3.8.8
+                export PATH=\$PATH:\${MAVEN_HOME}/bin
+
+                ls
+                java -version
+                mvn --version
+
+                 mvn clean verify -Dquick
+
+                ls
+                """
+            }
+        }
+    }
+    post{
+        always {
+            findText(
+                textFinders: [
+                    textFinder(
+                        alsoCheckConsoleOutput: true,
+                        regexp: '(Build|Install|Test)\\s[a-zA-Z-]+[\\s[a-zA-Z]+\\s]?failed|make.*:.+\\sError\\s[0-9]+|Test Run Error!|error: unknown type name|Segmentation fault|error: could not compile|compilation terminated|configure: error:|command not found'
+                    )
+                ]
+            )
+            //archiveArtifacts artifacts: 'Ystream_pkg/*', excludes: '*.md5', followSymlinks: false, onlyIfSuccessful: true
+        }
+        failure {
+            updateGitlabCommitStatus name: 'build',state: 'failed'
+        }
+        success {
+            updateGitlabCommitStatus name: 'build',state: 'success'
+        }
+    }
+}
