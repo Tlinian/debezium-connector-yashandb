@@ -173,18 +173,18 @@
 <!--            <version>${version.kafka.connect.avro}</version>-->
 <!--            <scope>test</scope>-->
 <!--        </dependency>-->
-        <dependency>
-            <groupId>io.apicurio</groupId>
-            <artifactId>apicurio-registry-utils-converter</artifactId>
-            <version>${version.apicurio}</version>
-            <scope>test</scope>
-            <exclusions>
-                <exclusion>
-                    <artifactId>slf4j-jboss-logmanager</artifactId>
-                    <groupId>org.jboss.slf4j</groupId>
-                </exclusion>
-            </exclusions>
-        </dependency>
+<!--        <dependency>-->
+<!--            <groupId>io.apicurio</groupId>-->
+<!--            <artifactId>apicurio-registry-utils-converter</artifactId>-->
+<!--            <version>${version.apicurio}</version>-->
+<!--            <scope>test</scope>-->
+<!--            <exclusions>-->
+<!--                <exclusion>-->
+<!--                    <artifactId>slf4j-jboss-logmanager</artifactId>-->
+<!--                    <groupId>org.jboss.slf4j</groupId>-->
+<!--                </exclusion>-->
+<!--            </exclusions>-->
+<!--        </dependency>-->
 
         <!-- Used for unit testing with Kafka -->
         <dependency>
@@ -249,32 +249,6 @@
                         <goals>
                             <goal>verify</goal>
                         </goals>
-                    </execution>
-                </executions>
-                <configuration>
-                    <skipTests>${skipITs}</skipTests>
-                    <enableAssertions>true</enableAssertions>
-                    <forkCount>1</forkCount>
-                    <argLine>-Djava.library.path=${instantclient.dir} -Ddebezium.embedded.shutdown.pause.before.interrupt.ms=20000 -Djavax.xml.parsers.SAXParserFactory=com.sun.org.apache.xerces.internal.jaxp.SAXParserFactoryImpl</argLine>
-                    <systemPropertyVariables>
-                        <database.connection.adapter>${adapter.name}</database.connection.adapter>
-                        <log.mining.buffer.type>${log.mining.buffer.type.name}</log.mining.buffer.type>
-                        <internal.log.mining.read.only>${log.mining.read.only.mode}</internal.log.mining.read.only>
-                    </systemPropertyVariables>
-                    <runOrder>${runOrder}</runOrder>
-                </configuration>
-            </plugin>
-            <plugin>
-                <groupId>io.debezium</groupId>
-                <artifactId>debezium-schema-generator</artifactId>
-                <version>${project.version}</version>
-                <executions>
-                    <execution>
-                        <id>generate-connector-metadata</id>
-                        <goals>
-                            <goal>generate-api-spec</goal>
-                        </goals>
-                        <phase>prepare-package</phase>
                     </execution>
                 </executions>
             </plugin>
