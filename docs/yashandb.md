@@ -51,11 +51,11 @@ ALTER TABLE tablename ADD SUPPLEMENTAL LOG DATA ( PRIMARY KEY ) COLUMNS;
 >
 > 需要额外注意的是，忽略开启附加日志或开启附加日志不正确会导致数据丢失甚至任务失败。
 
-#### 1.2.3 配置YStream服务
+#### 2.2.3 配置YStream服务
 
 详细配置教程参考：[DBMS_YSTREAM_ADM | YashanDB Doc (yasdb.com)](https://cod-doc.yasdb.com/yashandb/23.3/zh/开发手册/PL参考手册/内置高级包/DBMS_YSTREAM_ADM.html)
 
-##### 1.2.3.1 创建YStream 服务
+##### 2.2.3.1 创建YStream 服务
 
 ```sql
 DBMS_YSTREAM_ADM.CREATE(
@@ -72,7 +72,7 @@ start_scn 通过查询select CURRENT_SCN from V$DATABASE获取。
 EXEC DBMS_YSTREAM_ADM.CREATE('serverName', 'connect_user', start_scn)
 ```
 
-##### 1.2.3.2 为YStream服务新增解析表名和模式
+##### 2.2.3.2 为YStream服务新增解析表名和模式
 
 ```sql
 DBMS_YSTREAM_ADM.ADD_TABLES(
@@ -85,7 +85,7 @@ schemas    IN VARCHAR(4096));
 
 **注意：**这里添加的表名和模式要跟connector要捕获的表名和模式相同。
 
-##### 1.2.3.3 为YStream服务设置参数
+##### 2.2.3.3 为YStream服务设置参数
 
 ```sql
 DBMS_YSTREAM_ADM.SET_PARAMETER(
@@ -96,13 +96,13 @@ value     IN VARCHAR(64));
 
 SET_PARAMETER函数用于为已有服务设置参数，对应服务必须处于允许执行当前操作的状态（可通过查询V$YSTREAM_SERVER视图获取服务的状态）。
 
-##### 1.2.3.4 启动YStream服务
+##### 2.2.3.4 启动YStream服务
 
 ```sql
 DBMS_YSTREAM_ADM.START(server_name  IN VARCHAR(64));
 ```
 
-### 1.3 部署debezium connector yashandb 
+### 2.3 部署debezium connector yashandb 
 
 1. 下载debezium-connector-yashandb-2.4.2.Final.jar包
 
@@ -158,7 +158,7 @@ DBMS_YSTREAM_ADM.START(server_name  IN VARCHAR(64));
 
 10. 启动任务即可，恭喜安装完成。
 
-## 2.权限管理
+## 3. 权限管理
 
 | 权限授予                                         | 说明                    |
 | :----------------------------------------------- | :---------------------- |
@@ -170,7 +170,7 @@ DBMS_YSTREAM_ADM.START(server_name  IN VARCHAR(64));
 | GRANT FLASHBACK ANY TABLE TO *username*;         | 待迁移表的闪回查询权限  |
 | GRANT YSTREAM_CAPTURE TO *username*;             | YStream使用所需权限     |
 
-## 3、连接器属性
+## 4. 连接器属性
 
 | 属性                            | 默认值                                         | 描述                                                         |
 | :------------------------------ | :--------------------------------------------- | :----------------------------------------------------------- |
@@ -211,7 +211,7 @@ DBMS_YSTREAM_ADM.START(server_name  IN VARCHAR(64));
 
 其他参数请参考：[Debezium Connector for Oracle :: Debezium Documentation](https://debezium.io/documentation/reference/2.7/connectors/oracle.html#oracle-connector-properties)
 
-## 4.数据类型映射
+## 5. 数据类型映射
 
 当 Debezium Oracle 连接器检测到表行的值发生更改时，它会发出表示该更改的更改事件。 每个更改事件记录的结构与原始表的结构相同，事件记录包含每个列值的字段。 表列的数据类型决定了连接器如何在更改事件字段中表示列的值，如以下各节中的表所示。
 
@@ -250,18 +250,18 @@ DBMS_YSTREAM_ADM.START(server_name  IN VARCHAR(64));
 | ROWID                  | STRING                                         |
 | UROWID                 | STRING                                         |
 
-## 5.限制
+## 6. 限制
 
 1. 受限于debezium，负数的scala的NUMBER数据类型不支持
 2. 受限于YStream，不支持自定义数据类型，XMLTYPE, JSON数据类型。
 
-## 6.Q&A
+## 7. Q&A
 
-#### 6.1 报错：YashanDB does not yet have the YStream server ‘serverxx’ or check option 'database.ystream.server.name' if the parameters are filled in correctly. Please create and configure the YStream server, refer to the link 'xxx'.
+#### 7.1 报错：YashanDB does not yet have the YStream server ‘serverxx’ or check option 'database.ystream.server.name' if the parameters are filled in correctly. Please create and configure the YStream server, refer to the link 'xxx'.
 
 A: 填写的参数'database.ystream.server.name'对应的YStream server 不存在在YashanDB数据库中，请创建相关的YStream server ，参考链接：[DBMS_YSTREAM_ADM | YashanDB Doc (yasdb.com)](https://cod-doc.yasdb.com/yashandb/23.3/zh/开发手册/PL参考手册/内置高级包/DBMS_YSTREAM_ADM.html)
 
-#### 6.2 报错：YashanDB YStream server status is xxx. Please execute 'DBMS_YSTREAM_ADM.START( server_name IN VARCHAR(64) );' start YStream server。
+#### 7.2 报错：YashanDB YStream server status is xxx. Please execute 'DBMS_YSTREAM_ADM.START( server_name IN VARCHAR(64) );' start YStream server。
 
 A: 填写的参数'database.ystream.server.name'对应的YStream server 处于非运行状态或者非启动状态，请先在数据库中执行DBMS_YSTREAM_ADM.START( server_name IN VARCHAR(64) )启动该YStream服务。例如：
 
