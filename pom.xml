@@ -196,4 +196,89 @@
 
     </dependencies>
 
+    <build>
+        <resources>
+            <!-- Apply the properties set in the POM to the resource files -->
+            <resource>
+                <filtering>true</filtering>
+                <directory>src/main/resources</directory>
+                <includes>
+                    <include>*</include>
+                    <include>**/*</include>
+                </includes>
+            </resource>
+        </resources>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <argLine>-Djavax.xml.parsers.SAXParserFactory=com.sun.org.apache.xerces.internal.jaxp.SAXParserFactoryImpl</argLine>
+                    <systemProperties combine.children="append">
+                        <property>
+                            <name>database.connection.adapter</name>
+                            <value>${adapter.name}</value>
+                        </property>
+                        <property>
+                            <name>log.mining.buffer.type</name>
+                            <value>${log.mining.buffer.type.name}</value>
+                        </property>
+                        <property>
+                            <name>internal.log.mining.read.only</name>
+                            <value>${log.mining.read.only.mode}</value>
+                        </property>
+                    </systemProperties>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-failsafe-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>integration-test</id>
+                        <goals>
+                            <goal>integration-test</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>verify</id>
+                        <goals>
+                            <goal>verify</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <skipTests>${skipITs}</skipTests>
+                    <enableAssertions>true</enableAssertions>
+                    <forkCount>1</forkCount>
+                    <argLine>-Djava.library.path=${instantclient.dir} -Ddebezium.embedded.shutdown.pause.before.interrupt.ms=20000 -Djavax.xml.parsers.SAXParserFactory=com.sun.org.apache.xerces.internal.jaxp.SAXParserFactoryImpl</argLine>
+                    <systemPropertyVariables>
+                        <database.connection.adapter>${adapter.name}</database.connection.adapter>
+                        <log.mining.buffer.type>${log.mining.buffer.type.name}</log.mining.buffer.type>
+                        <internal.log.mining.read.only>${log.mining.read.only.mode}</internal.log.mining.read.only>
+                    </systemPropertyVariables>
+                    <runOrder>${runOrder}</runOrder>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>io.debezium</groupId>
+                <artifactId>debezium-schema-generator</artifactId>
+                <version>${project.version}</version>
+                <executions>
+                    <execution>
+                        <id>generate-connector-metadata</id>
+                        <goals>
+                            <goal>generate-api-spec</goal>
+                        </goals>
+                        <phase>prepare-package</phase>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
 </project>
