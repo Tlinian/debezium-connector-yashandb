@@ -1,6 +1,6 @@
 ## YashanDB Debezium Connector
 
-YashanDB Debezium Connector 是基于debezium用于打通YashanDB的全量数据和增量数据到Kafka。
+YashanDB Debezium Connector 是基于debezium用于打通同步YashanDB的全量数据和增量数据到Kafka。
 
 ### 编辑构建
 
@@ -16,7 +16,7 @@ YashanDB Debezium Connector 是基于debezium用于打通YashanDB的全量数据
 
 ```
 git clone https://git.yasdb.com/cod-noah/yas-kafka-connector.git
-cd debezium
+cd yas-debezium-connector
 ```
 
 然后使用Maven构建代码：
