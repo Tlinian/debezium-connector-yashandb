@@ -2,7 +2,7 @@
 
 ## 1. 概述
 
-Debezium Connector YashanDB连接器同步全量快照数据，捕获并记录YashanDB数据库中发生的行级更改，包含连接器运行时添加的表。您可以配置YashanDB连接器，使其为特定的schema和表捕获更改事件，将其同步到Kafka。
+Debezium Connector YashanDB连接器同步全量快照数据，捕获并记录YashanDB数据库中发生的行级更改，包含连接器运行时添加的表。您可以配置YashanDB连接器，使其为特定的schema和表捕获更改事件，将更改事件同步到Kafka。
 
 ## 2. 部署
 
