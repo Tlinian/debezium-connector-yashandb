@@ -58,7 +58,12 @@ public class YashanDBConnection extends JdbcConnection {
     }
 
     private static ConnectionFactory resolveConnectionFactory(JdbcConfiguration config) {
-        return JdbcConnection.patternBasedFactory(config.getString(URL));
+        return JdbcConnection.patternBasedFactory(connectionString(config));
+    }
+
+    public static String connectionString(JdbcConfiguration config) {
+        return config.getString(URL) != null ? config.getString(URL)
+                : String.format("jdbc:yasdb://%s:%s/%s",config.getString(JdbcConfiguration.HOSTNAME),config.getString(JdbcConfiguration.PORT),config.getString(JdbcConfiguration.DATABASE));
     }
 
     public String getTableMetadataDdl(TableId tableId) throws SQLException {

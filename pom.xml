@@ -8,11 +8,12 @@
     <artifactId>debezium-connector-yashandb</artifactId>
     <name>Debezium Connector for YashanDB</name>
     <packaging>jar</packaging>
-    <version>2.4.2.Final</version>
+    <version>2.4.2.0</version>
 
     <properties>
         <maven.compiler.source>11</maven.compiler.source>
         <maven.compiler.target>11</maven.compiler.target>
+        <version.debezium>2.4.2.Final</version.debezium>
         <version.kafka.scala>2.13</version.kafka.scala>
         <version.infinispan.protostream>4.6.2.Final</version.infinispan.protostream>
         <version.infinispan>14.0.11.Final</version.infinispan>
@@ -48,7 +49,7 @@
         <dependency>
             <groupId>io.debezium</groupId>
             <artifactId>debezium-core</artifactId>
-            <version>${version}</version>
+            <version>${version.debezium}</version>
         </dependency>
         <dependency>
             <groupId>com.sics.ystream</groupId>
@@ -69,17 +70,17 @@
         <dependency>
             <groupId>io.debezium</groupId>
             <artifactId>debezium-storage-kafka</artifactId>
-            <version>${version}</version>
+            <version>${version.debezium}</version>
         </dependency>
         <dependency>
             <groupId>io.debezium</groupId>
             <artifactId>debezium-storage-file</artifactId>
-            <version>${version}</version>
+            <version>${version.debezium}</version>
         </dependency>
         <dependency>
             <groupId>io.debezium</groupId>
             <artifactId>debezium-ddl-parser</artifactId>
-            <version>${version}</version>
+            <version>${version.debezium}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.kafka</groupId>
@@ -118,21 +119,21 @@
         <dependency>
             <groupId>io.debezium</groupId>
             <artifactId>debezium-core</artifactId>
-            <version>${version}</version>
+            <version>${version.debezium}</version>
             <type>test-jar</type>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>io.debezium</groupId>
             <artifactId>debezium-embedded</artifactId>
-            <version>${version}</version>
+            <version>${version.debezium}</version>
             <type>test-jar</type>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>io.debezium</groupId>
             <artifactId>debezium-embedded</artifactId>
-            <version>${version}</version>
+            <version>${version.debezium}</version>
             <scope>test</scope>
         </dependency>
         <dependency>

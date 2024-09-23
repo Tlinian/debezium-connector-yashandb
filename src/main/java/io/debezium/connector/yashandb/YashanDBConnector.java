@@ -71,6 +71,8 @@ public class YashanDBConnector extends RelationalBaseSourceConnector {
 
         YashanDBConnectorConfig connectorConfig = new YashanDBConnectorConfig(config);
         try (YashanDBConnection connection = new YashanDBConnection(connectorConfig.getJdbcConfig())) {
+            connection.connection();
+            connection.close();
             LOGGER.debug("Successfully tested connection for {} with user '{}'", connectorConfig.getJdbcConfig().getHostname(),
                     connection.username());
         }
