@@ -22,7 +22,7 @@ pipeline{
             steps{
                 cleanWs()
                 checkout scm
-                dir("ciscript"){ git url: 'git@git.yasdb.com:luweikang/ciscript.git', branch: "flink" }
+                dir("ciscript"){ git url: 'git@git.yasdb.com:test1/ciscript.git', branch: "master" }
                 sh """
                 set -ex
                 bash ${WORKSPACE}/ciscript/L2_L3_docker/L2_kafka_compile_pkg.sh kafka_Merge_Build ${BRANCH_NAME}
