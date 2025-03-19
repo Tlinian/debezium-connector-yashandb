@@ -6,7 +6,7 @@
 package io.debezium.connector.yashandb.antlr.listener;
 
 import io.debezium.connector.yashandb.antlr.YashanDBDdlParser;
-import io.debezium.ddl.parser.oracle.generated.PlSqlParser;
+import io.debezium.connector.yashandb.ddl.parser.gen.YashanDBParser;
 import io.debezium.relational.Column;
 import io.debezium.relational.Table;
 import io.debezium.relational.TableEditor;
@@ -31,7 +31,7 @@ public class CommentParserListener extends BaseParserListener {
     }
 
     @Override
-    public void enterComment_on_column(PlSqlParser.Comment_on_columnContext ctx) {
+    public void enterComment_on_column(YashanDBParser.Comment_on_columnContext ctx) {
         if (!parser.skipComments()) {
             TableId tableId = new TableId(catalogName, schemaName, getTableName(ctx.column_name()));
             if (parser.getTableFilter().isIncluded(tableId)) {
@@ -58,7 +58,7 @@ public class CommentParserListener extends BaseParserListener {
     }
 
     @Override
-    public void exitComment_on_column(PlSqlParser.Comment_on_columnContext ctx) {
+    public void exitComment_on_column(YashanDBParser.Comment_on_columnContext ctx) {
         if (!parser.skipComments()) {
             parser.runIfNotNull(() -> {
                 parser.databaseTables().overwriteTable(tableEditor.create());
@@ -69,7 +69,7 @@ public class CommentParserListener extends BaseParserListener {
     }
 
     @Override
-    public void enterComment_on_table(PlSqlParser.Comment_on_tableContext ctx) {
+    public void enterComment_on_table(YashanDBParser.Comment_on_tableContext ctx) {
         if (!parser.skipComments()) {
             TableId tableId = new TableId(catalogName, schemaName, getTableName(ctx.tableview_name()));
             if (parser.getTableFilter().isIncluded(tableId)) {
@@ -85,7 +85,7 @@ public class CommentParserListener extends BaseParserListener {
     }
 
     @Override
-    public void exitComment_on_table(PlSqlParser.Comment_on_tableContext ctx) {
+    public void exitComment_on_table(YashanDBParser.Comment_on_tableContext ctx) {
         if (!parser.skipComments()) {
             parser.runIfNotNull(() -> {
                 parser.databaseTables().overwriteTable(tableEditor.create());

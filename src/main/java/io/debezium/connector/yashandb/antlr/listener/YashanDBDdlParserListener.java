@@ -8,6 +8,7 @@ package io.debezium.connector.yashandb.antlr.listener;
 import io.debezium.antlr.AntlrDdlParserListener;
 import io.debezium.antlr.ProxyParseTreeListenerUtil;
 import io.debezium.connector.yashandb.antlr.YashanDBDdlParser;
+import io.debezium.connector.yashandb.ddl.parser.gen.YashanDBParserBaseListener;
 import io.debezium.ddl.parser.oracle.generated.PlSqlParserBaseListener;
 import io.debezium.text.ParsingException;
 import org.antlr.v4.runtime.ParserRuleContext;
@@ -23,7 +24,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
  * It instantiates supported listeners, walks listeners through every parsing rule and collects parsing exceptions.
  *
  */
-public class YashanDBDdlParserListener extends PlSqlParserBaseListener implements AntlrDdlParserListener {
+public class YashanDBDdlParserListener extends YashanDBParserBaseListener implements AntlrDdlParserListener {
 
     private final List<ParseTreeListener> listeners = new CopyOnWriteArrayList<>();
     private final Collection<ParsingException> errors = new ArrayList<>();

@@ -6,7 +6,7 @@
 package io.debezium.connector.yashandb.antlr.listener;
 
 import io.debezium.connector.yashandb.antlr.YashanDBDdlParser;
-import io.debezium.ddl.parser.oracle.generated.PlSqlParser;
+import io.debezium.connector.yashandb.ddl.parser.gen.YashanDBParser;
 import io.debezium.relational.Column;
 import io.debezium.relational.ColumnEditor;
 import io.debezium.relational.Table;
@@ -41,11 +41,12 @@ public class CreateTableParserListener extends BaseParserListener {
     }
 
     @Override
-    public void enterCreate_table(PlSqlParser.Create_tableContext ctx) {
+    public void enterCreate_table(YashanDBParser.Create_tableContext ctx) {
         if (ctx.relational_table() == null) {
             throw new ParsingException(null, "Only relational tables are supported");
         }
-        TableId tableId = new TableId(catalogName, schemaName, getTableName(ctx.tableview_name()));
+        String targetSchemaName = getSchemaName(ctx.tableview_name());
+        TableId tableId = new TableId(catalogName, targetSchemaName == null ? schemaName: targetSchemaName, getTableName(ctx.tableview_name()));
         if (parser.getTableFilter().isIncluded(tableId)) {
             if (parser.databaseTables().forTable(tableId) == null) {
                 tableEditor = parser.databaseTables().editOrCreateTable(tableId);
@@ -58,7 +59,7 @@ public class CreateTableParserListener extends BaseParserListener {
     }
 
     @Override
-    public void exitCreate_table(PlSqlParser.Create_tableContext ctx) {
+    public void exitCreate_table(YashanDBParser.Create_tableContext ctx) {
         parser.runIfNotNull(() -> {
             if (inlinePrimaryKey != null) {
                 if (!tableEditor.primaryKeyColumnNames().isEmpty()) {
@@ -81,7 +82,7 @@ public class CreateTableParserListener extends BaseParserListener {
     }
 
     @Override
-    public void enterColumn_definition(PlSqlParser.Column_definitionContext ctx) {
+    public void enterColumn_definition(YashanDBParser.Column_definitionContext ctx) {
         parser.runIfNotNull(() -> {
             String columnName = getColumnName(ctx.column_name());
             ColumnEditor columnEditor = Column.editor().name(columnName);
@@ -98,17 +99,17 @@ public class CreateTableParserListener extends BaseParserListener {
     }
 
     @Override
-    public void exitColumn_definition(PlSqlParser.Column_definitionContext ctx) {
+    public void exitColumn_definition(YashanDBParser.Column_definitionContext ctx) {
         parser.runIfNotNull(() -> tableEditor.addColumn(columnDefinitionParserListener.getColumn()),
                 tableEditor, columnDefinitionParserListener);
         super.exitColumn_definition(ctx);
     }
 
     @Override
-    public void exitInline_constraint(PlSqlParser.Inline_constraintContext ctx) {
+    public void exitInline_constraint(YashanDBParser.Inline_constraintContext ctx) {
         if (ctx.PRIMARY() != null) {
-            if (ctx.getParent() instanceof PlSqlParser.Column_definitionContext) {
-                PlSqlParser.Column_definitionContext columnCtx = (PlSqlParser.Column_definitionContext) ctx.getParent();
+            if (ctx.getParent() instanceof YashanDBParser.Column_definitionContext) {
+                YashanDBParser.Column_definitionContext columnCtx = (YashanDBParser.Column_definitionContext) ctx.getParent();
                 inlinePrimaryKey = getColumnName(columnCtx.column_name());
             }
         }
@@ -116,7 +117,7 @@ public class CreateTableParserListener extends BaseParserListener {
     }
 
     @Override
-    public void exitOut_of_line_constraint(PlSqlParser.Out_of_line_constraintContext ctx) {
+    public void exitOut_of_line_constraint(YashanDBParser.Out_of_line_constraintContext ctx) {
         parser.runIfNotNull(() -> {
             if (ctx.PRIMARY() != null) {
                 if (inlinePrimaryKey != null) {

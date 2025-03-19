@@ -101,7 +101,7 @@ public class YStreamStreamingChangeEventSource implements StreamingChangeEventSo
                 // 1. connect
                 ystreamClientBoot = YstreamClientBoot.getClient();
                 ystreamClientBoot.open(
-                        YstreamConfig.<YStreamRecord> builder()
+                        YstreamConfig.<YStreamRecord>builder()
                                 .setHost(jdbcConnection.config().getHostname())
                                 .setPort(String.valueOf(jdbcConnection.config().getPort()))
                                 .setUser(jdbcConnection.config().getUser())
@@ -131,12 +131,10 @@ public class YStreamStreamingChangeEventSource implements StreamingChangeEventSo
                         LOGGER.info("Streaming resumed");
                     }
                 }
-            }
-            finally {
+            } finally {
                 ystreamClientBoot.close();
             }
-        }
-        catch (Throwable e) {
+        } catch (Throwable e) {
             errorHandler.setProducerThrowable(e);
         }
     }
@@ -173,7 +171,9 @@ public class YStreamStreamingChangeEventSource implements StreamingChangeEventSo
     }
 
     private void sendPublishedPosition(final YStreamPosition lcrPosition, final Scn scn) {
-        lcrMessage.set(new PositionAndScn(lcrPosition, scn));
+        if (lcrPosition.getRawPosition().compareTo(this.effectiveOffset.getRecoverPosition()) > 0) {
+            lcrMessage.set(new PositionAndScn(lcrPosition, scn));
+        }
     }
 
     PositionAndScn receivePublishedPosition() {

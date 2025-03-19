@@ -107,10 +107,16 @@ public class YashanDBDefaultValueConverter implements DefaultValueConverter {
 
         // Numeric types
         result.put(YasTypes.NUMERIC, nullableDefaultValueMapper());
+        result.put(YasTypes.DECIMAL, nullableDefaultValueMapper());
+        result.put(YasTypes.INTEGER, nullableDefaultValueMapper());
 
         // Approximate numerics
         result.put(YasTypes.BINARY_FLOAT, nullableDefaultValueMapper());
         result.put(YasTypes.FLOAT, nullableDefaultValueMapper());
+        result.put(YasTypes.BIGINT, nullableDefaultValueMapper());
+        result.put(YasTypes.SMALLINT, nullableDefaultValueMapper());
+        result.put(YasTypes.TINYINT, nullableDefaultValueMapper());
+        result.put(YasTypes.REAL, nullableDefaultValueMapper());
         result.put(YasTypes.DOUBLE, nullableDefaultValueMapper());
 
         // Date and time

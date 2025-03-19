@@ -12,8 +12,8 @@ import io.debezium.antlr.DataTypeResolver;
 import io.debezium.antlr.DataTypeResolver.DataTypeEntry;
 import io.debezium.connector.yashandb.YashanDBValueConverters;
 import io.debezium.connector.yashandb.antlr.listener.YashanDBDdlParserListener;
-import io.debezium.ddl.parser.oracle.generated.PlSqlLexer;
-import io.debezium.ddl.parser.oracle.generated.PlSqlParser;
+import io.debezium.connector.yashandb.ddl.parser.gen.YashanDBLexer;
+import io.debezium.connector.yashandb.ddl.parser.gen.YashanDBParser;
 import io.debezium.relational.SystemVariables;
 import io.debezium.relational.Tables;
 import io.debezium.relational.Tables.TableFilter;
@@ -27,7 +27,7 @@ import java.util.Arrays;
 /**
  * This is the main YashanDB Antlr DDL parser
  */
-public class YashanDBDdlParser extends AntlrDdlParser<PlSqlLexer, PlSqlParser> {
+public class YashanDBDdlParser extends AntlrDdlParser<YashanDBLexer, YashanDBParser> {
 
     private final TableFilter tableFilter;
     private final YashanDBValueConverters converters;
@@ -67,7 +67,7 @@ public class YashanDBDdlParser extends AntlrDdlParser<PlSqlLexer, PlSqlParser> {
     }
 
     @Override
-    public ParseTree parseTree(PlSqlParser parser) {
+    public ParseTree parseTree(YashanDBParser parser) {
         return parser.sql_script();
     }
 
@@ -77,13 +77,13 @@ public class YashanDBDdlParser extends AntlrDdlParser<PlSqlLexer, PlSqlParser> {
     }
 
     @Override
-    protected PlSqlLexer createNewLexerInstance(CharStream charStreams) {
-        return new PlSqlLexer(charStreams);
+    protected YashanDBLexer createNewLexerInstance(CharStream charStreams) {
+        return new YashanDBLexer(charStreams);
     }
 
     @Override
-    protected PlSqlParser createNewParserInstance(CommonTokenStream commonTokenStream) {
-        return new PlSqlParser(commonTokenStream);
+    protected YashanDBParser createNewParserInstance(CommonTokenStream commonTokenStream) {
+        return new YashanDBParser(commonTokenStream);
     }
 
     @Override
@@ -97,29 +97,37 @@ public class YashanDBDdlParser extends AntlrDdlParser<PlSqlLexer, PlSqlParser> {
         DataTypeResolver.Builder dataTypeResolverBuilder = new DataTypeResolver.Builder();
 
         dataTypeResolverBuilder.registerDataTypes(
-                PlSqlParser.Native_datatype_elementContext.class.getCanonicalName(), Arrays.asList(
-                        new DataTypeEntry(Types.NUMERIC, PlSqlParser.INT),
-                        new DataTypeEntry(Types.NUMERIC, PlSqlParser.INTEGER),
-                        new DataTypeEntry(Types.NUMERIC, PlSqlParser.SMALLINT),
-                        new DataTypeEntry(Types.NUMERIC, PlSqlParser.NUMERIC),
-                        new DataTypeEntry(Types.NUMERIC, PlSqlParser.DECIMAL),
-                        new DataTypeEntry(Types.NUMERIC, PlSqlParser.NUMBER),
+                YashanDBParser.Native_datatype_elementContext.class.getCanonicalName(), Arrays.asList(
+                        new DataTypeEntry(Types.INTEGER, YashanDBParser.INT),
+                        new DataTypeEntry(Types.INTEGER, YashanDBParser.INTEGER),
+                        new DataTypeEntry(Types.SMALLINT, YashanDBParser.SMALLINT),
+                        new DataTypeEntry(Types.NUMERIC, YashanDBParser.NUMERIC),
+                        new DataTypeEntry(Types.DECIMAL, YashanDBParser.DECIMAL),
+                        new DataTypeEntry(Types.NUMERIC, YashanDBParser.NUMBER),
+                        new DataTypeEntry(Types.REAL, YashanDBParser.REAL),
+                        new DataTypeEntry(Types.DOUBLE, YashanDBParser.DOUBLE),
+                        new DataTypeEntry(Types.BIGINT, YashanDBParser.BIGINT),
+                        new DataTypeEntry(Types.BIT, YashanDBParser.BINARY),
+                        new DataTypeEntry(Types.BINARY, YashanDBParser.BINARY),
+                        new DataTypeEntry(Types.BOOLEAN, YashanDBParser.BOOLEAN),
 
-                        new DataTypeEntry(Types.TIMESTAMP, PlSqlParser.DATE),
-                        new DataTypeEntry(YasTypes.TIMESTAMP_LTZ, PlSqlParser.TIMESTAMP),
-                        new DataTypeEntry(YasTypes.TIMESTAMP_TZ, PlSqlParser.TIMESTAMP),
-                        new DataTypeEntry(Types.TIMESTAMP, PlSqlParser.TIMESTAMP),
+                        new DataTypeEntry(Types.TIMESTAMP, YashanDBParser.DATE),
+                        new DataTypeEntry(YasTypes.TIMESTAMP_LTZ, YashanDBParser.TIMESTAMP),
+                        new DataTypeEntry(YasTypes.TIMESTAMP_TZ, YashanDBParser.TIMESTAMP),
+                        new DataTypeEntry(Types.TIMESTAMP, YashanDBParser.TIMESTAMP),
+                        new DataTypeEntry(Types.TIME, YashanDBParser.TIME),
+                        new DataTypeEntry(Types.DATE, YashanDBParser.DATE),
 
-                        new DataTypeEntry(Types.VARCHAR, PlSqlParser.VARCHAR2),
-                        new DataTypeEntry(Types.VARCHAR, PlSqlParser.VARCHAR),
-                        new DataTypeEntry(Types.NVARCHAR, PlSqlParser.NVARCHAR2),
-                        new DataTypeEntry(Types.CHAR, PlSqlParser.CHAR),
-                        new DataTypeEntry(Types.NCHAR, PlSqlParser.NCHAR),
+                        new DataTypeEntry(Types.VARCHAR, YashanDBParser.VARCHAR2),
+                        new DataTypeEntry(Types.VARCHAR, YashanDBParser.VARCHAR),
+                        new DataTypeEntry(Types.NVARCHAR, YashanDBParser.NVARCHAR2),
+                        new DataTypeEntry(Types.CHAR, YashanDBParser.CHAR),
+                        new DataTypeEntry(Types.NCHAR, YashanDBParser.NCHAR),
 
-                        new DataTypeEntry(Types.FLOAT, PlSqlParser.FLOAT),
-                        new DataTypeEntry(Types.FLOAT, PlSqlParser.REAL),
-                        new DataTypeEntry(Types.BLOB, PlSqlParser.BLOB),
-                        new DataTypeEntry(Types.CLOB, PlSqlParser.CLOB)));
+                        new DataTypeEntry(Types.FLOAT, YashanDBParser.FLOAT),
+                        new DataTypeEntry(Types.FLOAT, YashanDBParser.REAL),
+                        new DataTypeEntry(Types.BLOB, YashanDBParser.BLOB),
+                        new DataTypeEntry(Types.CLOB, YashanDBParser.CLOB)));
         return dataTypeResolverBuilder.build();
     }
 
@@ -147,7 +155,7 @@ public class YashanDBDdlParser extends AntlrDdlParser<PlSqlLexer, PlSqlParser> {
     /**
      * Runs a function if all given object are not null.
      *
-     * @param function function to run; may not be null
+     * @param function        function to run; may not be null
      * @param nullableObjects object to be tested, if they are null.
      */
     public void runIfNotNull(Runnable function, Object... nullableObjects) {

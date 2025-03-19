@@ -5,15 +5,15 @@
  */
 package io.debezium.connector.yashandb.antlr.listener;
 
-import io.debezium.ddl.parser.oracle.generated.PlSqlParser;
-import io.debezium.ddl.parser.oracle.generated.PlSqlParserBaseListener;
+import io.debezium.connector.yashandb.ddl.parser.gen.YashanDBParser;
+import io.debezium.connector.yashandb.ddl.parser.gen.YashanDBParserBaseListener;
 
 /**
  * This class contains common methods for all listeners
  */
-class BaseParserListener extends PlSqlParserBaseListener {
+class BaseParserListener extends YashanDBParserBaseListener {
 
-    String getTableName(final PlSqlParser.Tableview_nameContext tableview_name) {
+    String getTableName(final YashanDBParser.Tableview_nameContext tableview_name) {
         final String tableName;
         if (tableview_name.id_expression() != null) {
             tableName = tableview_name.id_expression().getText();
@@ -24,7 +24,17 @@ class BaseParserListener extends PlSqlParserBaseListener {
         return getTableOrColumnName(tableName);
     }
 
-    String getTableName(final PlSqlParser.Column_nameContext ctx) {
+    String getSchemaName(final YashanDBParser.Tableview_nameContext tableview_name) {
+        final String schemaName;
+        if (tableview_name.identifier().id_expression() != null) {
+            schemaName = tableview_name.identifier().id_expression().getText();
+        }else {
+            return null;
+        }
+        return getTableOrColumnName(schemaName);
+    }
+
+    String getTableName(final YashanDBParser.Column_nameContext ctx) {
         final String tableName;
         if (ctx.id_expression() != null && ctx.id_expression().size() > 1) {
             tableName = getTableOrColumnName(ctx.id_expression(0).getText());
@@ -35,7 +45,7 @@ class BaseParserListener extends PlSqlParserBaseListener {
         return tableName;
     }
 
-    String getColumnName(final PlSqlParser.Column_nameContext ctx) {
+    String getColumnName(final YashanDBParser.Column_nameContext ctx) {
         final String columnName;
         if (ctx.id_expression() != null && ctx.id_expression().size() > 0) {
             columnName = getTableOrColumnName(ctx.id_expression(ctx.id_expression().size() - 1).getText());
@@ -46,11 +56,11 @@ class BaseParserListener extends PlSqlParserBaseListener {
         return columnName;
     }
 
-    String getColumnName(final PlSqlParser.Old_column_nameContext ctx) {
+    String getColumnName(final YashanDBParser.Old_column_nameContext ctx) {
         return getTableOrColumnName(ctx.getText());
     }
 
-    String getColumnName(final PlSqlParser.New_column_nameContext ctx) {
+    String getColumnName(final YashanDBParser.New_column_nameContext ctx) {
         return getTableOrColumnName(ctx.getText());
     }
 

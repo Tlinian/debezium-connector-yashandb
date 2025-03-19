@@ -8,7 +8,7 @@ package io.debezium.connector.yashandb.antlr.listener;
 import com.yashandb.jdbc.YasTypes;
 import io.debezium.antlr.DataTypeResolver;
 import io.debezium.connector.yashandb.antlr.YashanDBDdlParser;
-import io.debezium.ddl.parser.oracle.generated.PlSqlParser;
+import io.debezium.connector.yashandb.ddl.parser.gen.YashanDBParser;
 import io.debezium.relational.Column;
 import io.debezium.relational.ColumnEditor;
 import io.debezium.relational.TableEditor;
@@ -46,7 +46,7 @@ public class ColumnDefinitionParserListener extends BaseParserListener {
     }
 
     @Override
-    public void enterColumn_definition(PlSqlParser.Column_definitionContext ctx) {
+    public void enterColumn_definition(YashanDBParser.Column_definitionContext ctx) {
         resolveColumnDataType(ctx);
         if (ctx.DEFAULT() != null) {
             columnEditor.defaultValueExpression(ctx.column_default_value().getText());
@@ -55,7 +55,7 @@ public class ColumnDefinitionParserListener extends BaseParserListener {
     }
 
     @Override
-    public void enterPrimary_key_clause(PlSqlParser.Primary_key_clauseContext ctx) {
+    public void enterPrimary_key_clause(YashanDBParser.Primary_key_clauseContext ctx) {
         // this rule will be parsed only if no primary key is set in a table
         // otherwise the statement can't be executed due to multiple primary key error
         columnEditor.optional(false);
@@ -65,7 +65,7 @@ public class ColumnDefinitionParserListener extends BaseParserListener {
     }
 
     @Override
-    public void enterModify_col_properties(PlSqlParser.Modify_col_propertiesContext ctx) {
+    public void enterModify_col_properties(YashanDBParser.Modify_col_propertiesContext ctx) {
         resolveColumnDataType(ctx);
         if (ctx.DEFAULT() != null) {
             columnEditor.defaultValueExpression(ctx.column_default_value().getText());
@@ -74,7 +74,7 @@ public class ColumnDefinitionParserListener extends BaseParserListener {
     }
 
     // todo use dataTypeResolver instead
-    private void resolveColumnDataType(PlSqlParser.Column_definitionContext ctx) {
+    private void resolveColumnDataType(YashanDBParser.Column_definitionContext ctx) {
         columnEditor.name(getColumnName(ctx.column_name()));
 
         boolean hasNotNullConstraint = ctx.inline_constraint().stream().anyMatch(c -> c.NOT() != null);
@@ -84,13 +84,12 @@ public class ColumnDefinitionParserListener extends BaseParserListener {
             if (ctx.type_name() != null && "MDSYS.SDO_GEOMETRY".equalsIgnoreCase(ctx.type_name().getText().replace("\"", ""))) {
                 columnEditor.jdbcType(Types.STRUCT).type("MDSYS.SDO_GEOMETRY");
             }
-        }
-        else {
+        } else {
             resolveColumnDataType(ctx.datatype());
         }
     }
 
-    private void resolveColumnDataType(PlSqlParser.Modify_col_propertiesContext ctx) {
+    private void resolveColumnDataType(YashanDBParser.Modify_col_propertiesContext ctx) {
         columnEditor.name(getColumnName(ctx.column_name()));
 
         resolveColumnDataType(ctx.datatype());
@@ -99,24 +98,38 @@ public class ColumnDefinitionParserListener extends BaseParserListener {
         boolean hasNotNullConstraint = ctx.inline_constraint().stream().anyMatch(c -> c.NOT() != null);
         if (hasNotNullConstraint && columnEditor.isOptional()) {
             columnEditor.optional(false);
-        }
-        else if (hasNullConstraint && !columnEditor.isOptional()) {
+        } else if (hasNullConstraint && !columnEditor.isOptional()) {
             columnEditor.optional(true);
         }
     }
 
-    private void resolveColumnDataType(PlSqlParser.DatatypeContext ctx) {
+    private void resolveColumnDataType(YashanDBParser.DatatypeContext ctx) {
         // If the context is null, there is nothing this method can resolve and it is safe to return
         if (ctx == null) {
             return;
         }
 
         if (ctx.native_datatype_element() != null) {
-            PlSqlParser.Precision_partContext precisionPart = ctx.precision_part();
+            YashanDBParser.Precision_partContext precisionPart = ctx.precision_part();
             if (ctx.native_datatype_element().INT() != null
-                    || ctx.native_datatype_element().INTEGER() != null
-                    || ctx.native_datatype_element().SMALLINT() != null
-                    || ctx.native_datatype_element().NUMERIC() != null
+                    || ctx.native_datatype_element().INTEGER() != null) {
+                columnEditor
+                        .jdbcType(Types.INTEGER)
+                        .type("INTEGER");
+
+            } else if (ctx.native_datatype_element().SMALLINT() != null) {
+                columnEditor
+                        .jdbcType(Types.SMALLINT)
+                        .type("SMALLINT");
+            } else if (ctx.native_datatype_element().BIGINT() != null) {
+                columnEditor
+                        .jdbcType(Types.BIGINT)
+                        .type("BIGINT");
+            } else if (ctx.native_datatype_element().BOOLEAN() != null) {
+                columnEditor
+                        .jdbcType(Types.BOOLEAN)
+                        .type("BOOLEAN");
+            } else if (ctx.native_datatype_element().NUMERIC() != null
                     || ctx.native_datatype_element().DECIMAL() != null) {
                 // NUMERIC and DECIMAL types have by default zero scale
                 columnEditor
@@ -126,19 +139,16 @@ public class ColumnDefinitionParserListener extends BaseParserListener {
                 if (precisionPart == null) {
                     columnEditor.length(38)
                             .scale(0);
-                }
-                else {
+                } else {
                     setPrecision(precisionPart, columnEditor);
                     setScale(precisionPart, columnEditor);
                 }
-            }
-            else if (ctx.native_datatype_element().DATE() != null) {
+            } else if (ctx.native_datatype_element().DATE() != null) {
                 // JDBC driver reports type as timestamp but name DATE
                 columnEditor
                         .jdbcType(Types.TIMESTAMP)
                         .type("DATE");
-            }
-            else if (ctx.native_datatype_element().TIMESTAMP() != null) {
+            } else if (ctx.native_datatype_element().TIMESTAMP() != null) {
                 if (ctx.WITH() != null
                         && ctx.TIME() != null
                         && ctx.ZONE() != null) {
@@ -146,14 +156,12 @@ public class ColumnDefinitionParserListener extends BaseParserListener {
                         columnEditor
                                 .jdbcType(YasTypes.TIMESTAMP_LTZ)
                                 .type("TIMESTAMP WITH LOCAL TIME ZONE");
-                    }
-                    else {
+                    } else {
                         columnEditor
                                 .jdbcType(YasTypes.TIMESTAMP_TZ)
                                 .type("TIMESTAMP WITH TIME ZONE");
                     }
-                }
-                else {
+                } else {
                     columnEditor
                             .jdbcType(Types.TIMESTAMP)
                             .type("TIMESTAMP");
@@ -161,8 +169,7 @@ public class ColumnDefinitionParserListener extends BaseParserListener {
 
                 if (precisionPart == null) {
                     columnEditor.length(6);
-                }
-                else {
+                } else {
                     setPrecision(precisionPart, columnEditor);
                 }
             }
@@ -175,24 +182,20 @@ public class ColumnDefinitionParserListener extends BaseParserListener {
 
                 if (precisionPart == null) {
                     columnEditor.length(getVarCharDefaultLength());
-                }
-                else {
+                } else {
                     setPrecision(precisionPart, columnEditor);
                 }
-            }
-            else if (ctx.native_datatype_element().NVARCHAR2() != null) {
+            } else if (ctx.native_datatype_element().NVARCHAR2() != null || ctx.native_datatype_element().NVARCHAR() != null) {
                 columnEditor
                         .jdbcType(Types.NVARCHAR)
                         .type("NVARCHAR2");
 
                 if (precisionPart == null) {
                     columnEditor.length(getVarCharDefaultLength());
-                }
-                else {
+                } else {
                     setPrecision(precisionPart, columnEditor);
                 }
-            }
-            else if (ctx.native_datatype_element().CHAR() != null ||
+            } else if (ctx.native_datatype_element().CHAR() != null ||
                     ctx.native_datatype_element().CHARACTER() != null) {
                 columnEditor
                         .jdbcType(Types.CHAR)
@@ -202,8 +205,7 @@ public class ColumnDefinitionParserListener extends BaseParserListener {
                 if (precisionPart != null) {
                     setPrecision(precisionPart, columnEditor);
                 }
-            }
-            else if (ctx.native_datatype_element().NCHAR() != null) {
+            } else if (ctx.native_datatype_element().NCHAR() != null) {
                 columnEditor
                         .jdbcType(Types.NCHAR)
                         .type("NCHAR")
@@ -225,80 +227,67 @@ public class ColumnDefinitionParserListener extends BaseParserListener {
                 if (precisionPart != null) {
                     setPrecision(precisionPart, columnEditor);
                 }
-            }
-            else if (ctx.native_datatype_element().REAL() != null) {
+            } else if (ctx.native_datatype_element().REAL() != null) {
                 columnEditor
                         .jdbcType(Types.FLOAT)
                         .type("FLOAT")
                         // TODO float's precision is about bits not decimal digits; should be ok for now to over-size
                         .length(63);
-            }
-            else if (ctx.native_datatype_element().NUMBER() != null) {
+            } else if (ctx.native_datatype_element().NUMBER() != null) {
                 columnEditor
                         .jdbcType(Types.NUMERIC)
                         .type("NUMBER");
 
                 if (precisionPart == null) {
                     columnEditor.length(38);
-                }
-                else {
+                } else {
                     if (precisionPart.ASTERISK() != null) {
                         // when asterisk is used, explicitly set precision to 38
                         columnEditor.length(38);
-                    }
-                    else {
+                    } else {
                         setPrecision(precisionPart, columnEditor);
                     }
                     setScale(precisionPart, columnEditor);
                 }
-            }
-            else if (ctx.native_datatype_element().BLOB() != null) {
+            } else if (ctx.native_datatype_element().BLOB() != null) {
                 columnEditor
                         .jdbcType(Types.BLOB)
                         .type("BLOB");
-            }
-            else if (ctx.native_datatype_element().CLOB() != null) {
+            } else if (ctx.native_datatype_element().CLOB() != null) {
                 columnEditor
                         .jdbcType(Types.CLOB)
                         .type("CLOB");
-            }
-            else if (ctx.native_datatype_element().NCLOB() != null) {
+            } else if (ctx.native_datatype_element().NCLOB() != null) {
                 columnEditor
                         .jdbcType(Types.NCLOB)
                         .type("NCLOB");
-            }
-            else if (ctx.native_datatype_element().RAW() != null) {
+            } else if (ctx.native_datatype_element().RAW() != null) {
                 columnEditor
                         .jdbcType(YasTypes.RAW)
                         .type("RAW");
 
                 setPrecision(precisionPart, columnEditor);
-            }
-            else if (ctx.native_datatype_element().SDO_GEOMETRY() != null) {
+            } else if (ctx.native_datatype_element().SDO_GEOMETRY() != null) {
                 // Allows the registration of new SDO_GEOMETRY columns via an CREATE/ALTER TABLE
                 // This is the same registration of the column that is resolved during JDBC metadata inspection.
                 columnEditor
                         .jdbcType(YasTypes.OTHER)
                         .type("SDO_GEOMETRY")
                         .length(1);
-            }
-            else if (ctx.native_datatype_element().ROWID() != null) {
+            } else if (ctx.native_datatype_element().ROWID() != null) {
                 columnEditor
                         .jdbcType(Types.VARCHAR)
                         .type("ROWID");
-            }
-            else if (ctx.native_datatype_element().XMLTYPE() != null) {
+            } else if (ctx.native_datatype_element().XMLTYPE() != null) {
                 columnEditor
                         .jdbcType(YasTypes.SQLXML)
                         .type("XMLTYPE");
-            }
-            else {
+            } else {
                 columnEditor
                         .jdbcType(YasTypes.OTHER)
                         .type(ctx.native_datatype_element().getText());
             }
-        }
-        else if (ctx.INTERVAL() != null
+        } else if (ctx.INTERVAL() != null
                 && ctx.YEAR() != null
                 && ctx.TO() != null
                 && ctx.MONTH() != null) {
@@ -309,8 +298,7 @@ public class ColumnDefinitionParserListener extends BaseParserListener {
             if (!ctx.expression().isEmpty()) {
                 columnEditor.length(Integer.valueOf((ctx.expression(0).getText())));
             }
-        }
-        else if (ctx.INTERVAL() != null
+        } else if (ctx.INTERVAL() != null
                 && ctx.DAY() != null
                 && ctx.TO() != null
                 && ctx.SECOND() != null) {
@@ -319,19 +307,17 @@ public class ColumnDefinitionParserListener extends BaseParserListener {
                     .type("INTERVAL DAY TO SECOND")
                     .length(2)
                     .scale(6);
-            for (final PlSqlParser.ExpressionContext e : ctx.expression()) {
+            for (final YashanDBParser.ExpressionContext e : ctx.expression()) {
                 if (e.getSourceInterval().startsAfter(ctx.TO().getSourceInterval())) {
                     columnEditor.scale(Integer.valueOf(e.getText()));
-                }
-                else {
+                } else {
                     columnEditor.length(Integer.valueOf(e.getText()));
                 }
             }
             if (!ctx.expression().isEmpty()) {
                 columnEditor.length(Integer.valueOf((ctx.expression(0).getText())));
             }
-        }
-        else {
+        } else {
             columnEditor.jdbcType(YasTypes.OTHER).type(ctx.getText());
         }
     }
@@ -341,18 +327,16 @@ public class ColumnDefinitionParserListener extends BaseParserListener {
         return 4000;
     }
 
-    private void setPrecision(PlSqlParser.Precision_partContext precisionPart, ColumnEditor columnEditor) {
+    private void setPrecision(YashanDBParser.Precision_partContext precisionPart, ColumnEditor columnEditor) {
         columnEditor.length(Integer.valueOf(precisionPart.numeric(0).getText()));
     }
 
-    private void setScale(PlSqlParser.Precision_partContext precisionPart, ColumnEditor columnEditor) {
+    private void setScale(YashanDBParser.Precision_partContext precisionPart, ColumnEditor columnEditor) {
         if (precisionPart.numeric().size() > 1) {
             columnEditor.scale(Integer.valueOf(precisionPart.numeric(1).getText()));
-        }
-        else if (precisionPart.numeric_negative() != null) {
+        } else if (precisionPart.numeric_negative() != null) {
             columnEditor.scale(Integer.valueOf(precisionPart.numeric_negative().getText()));
-        }
-        else {
+        } else {
             columnEditor.scale(0);
         }
     }

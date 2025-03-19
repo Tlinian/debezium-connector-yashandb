@@ -6,7 +6,7 @@
 package io.debezium.connector.yashandb.antlr.listener;
 
 import io.debezium.connector.yashandb.antlr.YashanDBDdlParser;
-import io.debezium.ddl.parser.oracle.generated.PlSqlParser;
+import io.debezium.connector.yashandb.ddl.parser.gen.YashanDBParser;
 import io.debezium.relational.Column;
 import io.debezium.relational.ColumnEditor;
 import io.debezium.relational.TableEditor;
@@ -56,9 +56,10 @@ public class AlterTableParserListener extends BaseParserListener {
     }
 
     @Override
-    public void enterAlter_table(PlSqlParser.Alter_tableContext ctx) {
+    public void enterAlter_table(YashanDBParser.Alter_tableContext ctx) {
         previousTableId = null;
-        TableId tableId = new TableId(catalogName, schemaName, getTableName(ctx.tableview_name()));
+        String targetSchema = getSchemaName(ctx.tableview_name());
+        TableId tableId = new TableId(catalogName,targetSchema == null? schemaName: targetSchema, getTableName(ctx.tableview_name()));
         if (parser.databaseTables().forTable(tableId) == null) {
             LOGGER.debug("Ignoring ALTER TABLE statement for non-captured table {}", tableId);
             return;
@@ -72,7 +73,7 @@ public class AlterTableParserListener extends BaseParserListener {
     }
 
     @Override
-    public void exitAlter_table(PlSqlParser.Alter_tableContext ctx) {
+    public void exitAlter_table(YashanDBParser.Alter_tableContext ctx) {
         parser.runIfNotNull(() -> {
             listeners.remove(columnDefinitionParserListener);
             parser.databaseTables().overwriteTable(tableEditor.create());
@@ -82,7 +83,7 @@ public class AlterTableParserListener extends BaseParserListener {
     }
 
     @Override
-    public void enterAlter_table_properties(PlSqlParser.Alter_table_propertiesContext ctx) {
+    public void enterAlter_table_properties(YashanDBParser.Alter_table_propertiesContext ctx) {
         parser.runIfNotNull(() -> {
             if (ctx.RENAME() != null && ctx.TO() != null) {
                 previousTableId = tableEditor.tableId();
@@ -103,11 +104,11 @@ public class AlterTableParserListener extends BaseParserListener {
     }
 
     @Override
-    public void enterAdd_column_clause(PlSqlParser.Add_column_clauseContext ctx) {
+    public void enterAdd_column_clause(YashanDBParser.Add_column_clauseContext ctx) {
         parser.runIfNotNull(() -> {
-            List<PlSqlParser.Column_definitionContext> columns = ctx.column_definition();
+            List<YashanDBParser.Column_definitionContext> columns = ctx.column_definition();
             columnEditors = new ArrayList<>(columns.size());
-            for (PlSqlParser.Column_definitionContext column : columns) {
+            for (YashanDBParser.Column_definitionContext column : columns) {
                 String columnName = getColumnName(column.column_name());
                 ColumnEditor editor = Column.editor().name(columnName);
                 columnEditors.add(editor);
@@ -119,14 +120,14 @@ public class AlterTableParserListener extends BaseParserListener {
     }
 
     @Override
-    public void enterModify_column_clauses(PlSqlParser.Modify_column_clausesContext ctx) {
+    public void enterModify_column_clauses(YashanDBParser.Modify_column_clausesContext ctx) {
         parser.runIfNotNull(() -> {
-            List<PlSqlParser.Modify_col_propertiesContext> columns = ctx.modify_col_properties();
+            List<YashanDBParser.Modify_col_propertiesContext> columns = ctx.modify_col_properties();
             // This check is necessary because the DDL may have supplied modify_col_visibility clause or
             // a modify_col_substitutable clause which won't affect the state of the relational model.
             if (!columns.isEmpty()) {
                 columnEditors = new ArrayList<>(columns.size());
-                for (PlSqlParser.Modify_col_propertiesContext column : columns) {
+                for (YashanDBParser.Modify_col_propertiesContext column : columns) {
                     String columnName = getColumnName(column.column_name());
                     Column existingColumn = tableEditor.columnWithName(columnName);
                     if (existingColumn != null) {
@@ -146,7 +147,7 @@ public class AlterTableParserListener extends BaseParserListener {
     }
 
     @Override
-    public void exitAdd_column_clause(PlSqlParser.Add_column_clauseContext ctx) {
+    public void exitAdd_column_clause(YashanDBParser.Add_column_clauseContext ctx) {
         parser.runIfNotNull(() -> {
             columnEditors.forEach(columnEditor -> tableEditor.addColumn(columnEditor.create()));
             listeners.remove(columnDefinitionParserListener);
@@ -156,7 +157,7 @@ public class AlterTableParserListener extends BaseParserListener {
     }
 
     @Override
-    public void exitModify_column_clauses(PlSqlParser.Modify_column_clausesContext ctx) {
+    public void exitModify_column_clauses(YashanDBParser.Modify_column_clausesContext ctx) {
         parser.runIfNotNull(() -> {
             columnEditors.forEach(columnEditor -> tableEditor.addColumn(columnEditor.create()));
             listeners.remove(columnDefinitionParserListener);
@@ -166,7 +167,7 @@ public class AlterTableParserListener extends BaseParserListener {
     }
 
     @Override
-    public void exitColumn_definition(PlSqlParser.Column_definitionContext ctx) {
+    public void exitColumn_definition(YashanDBParser.Column_definitionContext ctx) {
         parser.runIfNotNull(() -> {
             if (columnEditors != null) {
                 // column editor list is not null when a multiple columns are parsed in one statement
@@ -187,7 +188,7 @@ public class AlterTableParserListener extends BaseParserListener {
     }
 
     @Override
-    public void exitModify_col_properties(PlSqlParser.Modify_col_propertiesContext ctx) {
+    public void exitModify_col_properties(YashanDBParser.Modify_col_propertiesContext ctx) {
         parser.runIfNotNull(() -> {
             if (columnEditors != null) {
                 // column editor list is not null when multiple columns are paresd in one statement
@@ -208,11 +209,11 @@ public class AlterTableParserListener extends BaseParserListener {
     }
 
     @Override
-    public void enterDrop_column_clause(PlSqlParser.Drop_column_clauseContext ctx) {
+    public void enterDrop_column_clause(YashanDBParser.Drop_column_clauseContext ctx) {
         parser.runIfNotNull(() -> {
-            List<PlSqlParser.Column_nameContext> columnNameContexts = ctx.column_name();
+            List<YashanDBParser.Column_nameContext> columnNameContexts = ctx.column_name();
             columnEditors = new ArrayList<>(columnNameContexts.size());
-            for (PlSqlParser.Column_nameContext columnNameContext : columnNameContexts) {
+            for (YashanDBParser.Column_nameContext columnNameContext : columnNameContexts) {
                 String columnName = getColumnName(columnNameContext);
                 tableEditor.removeColumn(columnName);
             }
@@ -221,7 +222,7 @@ public class AlterTableParserListener extends BaseParserListener {
     }
 
     @Override
-    public void exitRename_column_clause(PlSqlParser.Rename_column_clauseContext ctx) {
+    public void exitRename_column_clause(YashanDBParser.Rename_column_clauseContext ctx) {
         parser.runIfNotNull(() -> {
             tableEditor.renameColumn(getColumnName(ctx.old_column_name()), getColumnName(ctx.new_column_name()));
         }, tableEditor);
@@ -229,14 +230,14 @@ public class AlterTableParserListener extends BaseParserListener {
     }
 
     @Override
-    public void enterConstraint_clauses(PlSqlParser.Constraint_clausesContext ctx) {
+    public void enterConstraint_clauses(YashanDBParser.Constraint_clausesContext ctx) {
         parser.runIfNotNull(() -> {
             if (ctx.ADD() != null) {
                 // ALTER TABLE ADD PRIMARY KEY
                 List<String> primaryKeyColumns = new ArrayList<>();
-                for (PlSqlParser.Out_of_line_constraintContext constraint : ctx.out_of_line_constraint()) {
+                for (YashanDBParser.Out_of_line_constraintContext constraint : ctx.out_of_line_constraint()) {
                     if (constraint.PRIMARY() != null && constraint.KEY() != null) {
-                        for (PlSqlParser.Column_nameContext columnNameContext : constraint.column_name()) {
+                        for (YashanDBParser.Column_nameContext columnNameContext : constraint.column_name()) {
                             primaryKeyColumns.add(getColumnName(columnNameContext));
                         }
                     }
@@ -248,7 +249,7 @@ public class AlterTableParserListener extends BaseParserListener {
             else if (ctx.MODIFY() != null && ctx.PRIMARY() != null && ctx.KEY() != null) {
                 // ALTER TABLE MODIFY PRIMARY KEY columns
                 List<String> primaryKeyColumns = new ArrayList<>();
-                for (PlSqlParser.Column_nameContext columnNameContext : ctx.column_name()) {
+                for (YashanDBParser.Column_nameContext columnNameContext : ctx.column_name()) {
                     primaryKeyColumns.add(getColumnName(columnNameContext));
                 }
                 if (!primaryKeyColumns.isEmpty()) {

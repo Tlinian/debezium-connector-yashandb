@@ -42,7 +42,7 @@ import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 /**
- * The streaming adapter implementation for Oracle XStream.
+ * The streaming adapter implementation for YashanDB YStream.
  *
  * @author Chris Cranford
  */

@@ -8,7 +8,7 @@
     <artifactId>debezium-connector-yashandb</artifactId>
     <name>Debezium Connector for YashanDB</name>
     <packaging>jar</packaging>
-    <version>2.4.2.0</version>
+    <version>2.4.2.0.1</version>
 
     <properties>
         <maven.compiler.source>11</maven.compiler.source>
@@ -39,11 +39,20 @@
 <!--                <enabled>true</enabled>-->
 <!--            </snapshots>-->
         </repository>
-        <repository>
-            <id>huaweicloud</id>
-            <url>https://mirrors.huaweicloud.com/repository/maven/</url>
-        </repository>
     </repositories>
+
+    <!-- 配置插件仓库 -->
+    <pluginRepositories>
+        <pluginRepository>
+            <id>sics</id>
+            <name>sics</name>
+            <url>https://maven.yasdb.com/repository/maven-public/</url>
+            <layout>default</layout>
+            <snapshots>
+                <enabled>true</enabled>
+            </snapshots>
+        </pluginRepository>
+    </pluginRepositories>
 
     <dependencies>
         <dependency>
@@ -167,26 +176,6 @@
             <scope>test</scope>
         </dependency>
 
-        <!-- Required by VerifyRecord -->
-<!--        <dependency>-->
-<!--            <groupId>io.confluent</groupId>-->
-<!--            <artifactId>kafka-connect-avro-converter</artifactId>-->
-<!--            <version>${version.kafka.connect.avro}</version>-->
-<!--            <scope>test</scope>-->
-<!--        </dependency>-->
-<!--        <dependency>-->
-<!--            <groupId>io.apicurio</groupId>-->
-<!--            <artifactId>apicurio-registry-utils-converter</artifactId>-->
-<!--            <version>${version.apicurio}</version>-->
-<!--            <scope>test</scope>-->
-<!--            <exclusions>-->
-<!--                <exclusion>-->
-<!--                    <artifactId>slf4j-jboss-logmanager</artifactId>-->
-<!--                    <groupId>org.jboss.slf4j</groupId>-->
-<!--                </exclusion>-->
-<!--            </exclusions>-->
-<!--        </dependency>-->
-
         <!-- Used for unit testing with Kafka -->
         <dependency>
             <groupId>org.apache.kafka</groupId>
@@ -211,6 +200,33 @@
         </resources>
         <plugins>
             <plugin>
+                <groupId>org.antlr</groupId>
+                <artifactId>antlr4-maven-plugin</artifactId>
+                <version>4.13.1</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>antlr4</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <!-- 指定语法文件源目录 -->
+                    <sourceDirectory>src/main/resources</sourceDirectory>
+                    <!-- 指定生成代码的输出目录 -->
+                    <outputDirectory>src/main/java/io/debezium/connector/yashandb/ddl/parser/gen</outputDirectory>
+                    <!-- 强制生成包路径 -->
+                    <arguments>
+                        <argument>-package</argument>
+                        <argument>io.debezium.connector.yashandb.ddl.parser.gen</argument>
+<!--                        <argument>-visitor</argument>-->
+                    </arguments>
+                    <listener>true</listener>
+                    <visitor>false</visitor>
+                    <!-- 覆盖默认的包路径生成逻辑 -->
+                </configuration>
+            </plugin>
+            <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
             </plugin>
@@ -219,20 +235,6 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
                     <argLine>-Djavax.xml.parsers.SAXParserFactory=com.sun.org.apache.xerces.internal.jaxp.SAXParserFactoryImpl</argLine>
-                    <systemProperties combine.children="append">
-                        <property>
-                            <name>database.connection.adapter</name>
-                            <value>${adapter.name}</value>
-                        </property>
-                        <property>
-                            <name>log.mining.buffer.type</name>
-                            <value>${log.mining.buffer.type.name}</value>
-                        </property>
-                        <property>
-                            <name>internal.log.mining.read.only</name>
-                            <value>${log.mining.read.only.mode}</value>
-                        </property>
-                    </systemProperties>
                 </configuration>
             </plugin>
             <plugin>
@@ -255,5 +257,4 @@
             </plugin>
         </plugins>
     </build>
-
 </project>

@@ -39,7 +39,7 @@ public class YashanDBOffsetContext extends CommonOffsetContext<SourceInfo> {
 
     /**
      * SCN that was used for the initial consistent snapshot.
-     *
+     * <p>
      * We keep track of this field because it's a cutoff for emitting DDL statements,
      * in case we start mining _before_ the snapshot SCN to cover transactions that were
      * ongoing at the time the snapshot was taken.
@@ -98,8 +98,7 @@ public class YashanDBOffsetContext extends CommonOffsetContext<SourceInfo> {
         this.snapshotCompleted = snapshotCompleted;
         if (this.snapshotCompleted) {
             postSnapshotCompletion();
-        }
-        else {
+        } else {
             sourceInfo.setSnapshot(snapshot ? SnapshotRecord.TRUE : SnapshotRecord.FALSE);
         }
     }
@@ -212,8 +211,7 @@ public class YashanDBOffsetContext extends CommonOffsetContext<SourceInfo> {
             offset.put(SourceInfo.INSTANCE_ID_KEY, bytes);
 
             return offset;
-        }
-        else {
+        } else {
             final Map<String, Object> offset = new HashMap<>();
             if (sourceInfo.getLcrPosition() != null) {
                 // offset.put(SourceInfo.LCR_POSITION_KEY, sourceInfo.getLcrPosition());
@@ -222,11 +220,18 @@ public class YashanDBOffsetContext extends CommonOffsetContext<SourceInfo> {
                 offset.put(SourceInfo.GROUP_OFFSET_KEY, sourceInfo.getGroupOffset());
                 offset.put(SourceInfo.INSTANCE_ID_KEY, sourceInfo.getInstanceId());
                 offset.put(SourceInfo.BATCH_ROW_ID_KEY, sourceInfo.getBatchRowId());
-            }
-            else {
+            } else {
+                // has not lcr position, use recoverPosition.
                 final Scn scn = sourceInfo.getScn();
                 offset.put(SourceInfo.SCN_KEY, scn != null ? scn.toString() : null);
                 sourceInfo.getCommitScn().store(offset);
+                offset.put(SourceInfo.POSITION_SCN_KEY, recoverPosition.getCommitScn().getScn());
+                offset.put(SourceInfo.GROUP_LSN_KEY, recoverPosition.getLogPosition().getGroupLsn());
+                offset.put(SourceInfo.GROUP_OFFSET_KEY, recoverPosition.getLogPosition().getGroupOffset());
+                byte[] bytes = new byte[8];
+                bytes[0] = recoverPosition.getLogPosition().getInstanceId();
+                offset.put(SourceInfo.INSTANCE_ID_KEY, bytes);
+                offset.put(SourceInfo.BATCH_ROW_ID_KEY, recoverPosition.getLogPosition().getBatchRowId());
             }
             if (snapshotPendingTransactions != null && !snapshotPendingTransactions.isEmpty()) {
                 String encoded = snapshotPendingTransactions.entrySet().stream()
@@ -237,14 +242,6 @@ public class YashanDBOffsetContext extends CommonOffsetContext<SourceInfo> {
             offset.put(SNAPSHOT_SCN_KEY, snapshotScn != null ? snapshotScn.isNull() ? null : snapshotScn.toString() : null);
             offset.put(YSTREAM_START_SCN_KEY, ystreamStartScn != null ? ystreamStartScn.isNull() ? null : ystreamStartScn.toString() : null);
             offset.put(YSTREAM_SERVER_CREATE, isCreateServer);
-            offset.put(SourceInfo.POSITION_SCN_KEY, recoverPosition.getCommitScn().getScn());
-            offset.put(SourceInfo.GROUP_LSN_KEY, recoverPosition.getLogPosition().getGroupLsn());
-            offset.put(SourceInfo.GROUP_OFFSET_KEY, recoverPosition.getLogPosition().getGroupOffset());
-            offset.put(SourceInfo.BATCH_ROW_ID_KEY, recoverPosition.getLogPosition().getBatchRowId());
-            byte[] bytes = new byte[8];
-            bytes[0] = recoverPosition.getLogPosition().getInstanceId();
-            offset.put(SourceInfo.INSTANCE_ID_KEY, bytes);
-
             return incrementalSnapshotContext.store(transactionContext.store(offset));
         }
     }
@@ -404,15 +401,14 @@ public class YashanDBOffsetContext extends CommonOffsetContext<SourceInfo> {
      * Helper method to resolve a {@link Scn} by key from the offset map.
      *
      * @param offset the offset map
-     * @param key the entry key, either {@link SourceInfo#SCN_KEY} or {@link SourceInfo#COMMIT_SCN_KEY}.
+     * @param key    the entry key, either {@link SourceInfo#SCN_KEY} or {@link SourceInfo#COMMIT_SCN_KEY}.
      * @return the {@link Scn} or null if not found
      */
     public static Scn getScnFromOffsetMapByKey(Map<String, ?> offset, String key) {
         Object scn = offset.get(key);
         if (scn instanceof String) {
             return Scn.valueOf((String) scn);
-        }
-        else if (scn != null) {
+        } else if (scn != null) {
             return Scn.valueOf((Long) scn);
         }
         return null;
@@ -461,8 +457,7 @@ public class YashanDBOffsetContext extends CommonOffsetContext<SourceInfo> {
         byte[] instanceId;
         if (instance instanceof String) {
             instanceId = Base64.getDecoder().decode((String) instance);
-        }
-        else {
+        } else {
             instanceId = (byte[]) instance;
         }
         Object groupLsn = offset.get(SourceInfo.GROUP_LSN_KEY);
@@ -471,19 +466,16 @@ public class YashanDBOffsetContext extends CommonOffsetContext<SourceInfo> {
         if (scn instanceof String) {
             return new Position(new SystemChangeNumber(Long.parseLong((String) scn)),
                     new LogPosition(instanceId[0], (Long) groupLsn, (Integer) groupOffset, (Integer) batchRowId));
-        }
-        else if (scn instanceof Long) {
+        } else if (scn instanceof Long) {
             if (groupOffset instanceof Long) {
                 return new Position(new SystemChangeNumber((Long) scn),
                         new LogPosition(instanceId[0], (Long) groupLsn, Math.toIntExact((Long) groupOffset), Math.toIntExact((Long) batchRowId)));
             }
             return new Position(new SystemChangeNumber((Long) scn), new LogPosition(instanceId[0], (Long) groupLsn, (Integer) groupOffset, (Integer) batchRowId));
-        }
-        else if (scn instanceof Integer) {
+        } else if (scn instanceof Integer) {
             return new Position(new SystemChangeNumber((Integer) scn), new LogPosition(instanceId[0], (Long) groupLsn, (Integer) groupOffset, (Integer) batchRowId));
 
-        }
-        else {
+        } else {
             return null;
         }
     }

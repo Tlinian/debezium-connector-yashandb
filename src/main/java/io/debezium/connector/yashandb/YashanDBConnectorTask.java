@@ -150,8 +150,7 @@ public class YashanDBConnectorTask extends BaseSourceTask<YashanDBPartition, Yas
     }
 
     private YashanDBConnection getHeartbeatConnection(YashanDBConnectorConfig connectorConfig, JdbcConfiguration jdbcConfig) {
-        final YashanDBConnection connection = new YashanDBConnection(jdbcConfig);
-        return connection;
+        return new YashanDBConnection(jdbcConfig);
     }
 
     @Override

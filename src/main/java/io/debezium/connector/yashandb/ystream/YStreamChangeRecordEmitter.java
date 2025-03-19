@@ -17,7 +17,9 @@ import io.debezium.pipeline.spi.OffsetContext;
 import io.debezium.relational.Table;
 import io.debezium.util.Clock;
 
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * Emits change data based on a single {@link YStreamDmlRecord} event.
@@ -63,12 +65,13 @@ public class YStreamChangeRecordEmitter extends BaseChangeRecordEmitter<YStreamD
     public static Object[] getColumnValues(Table table, YstreamColumns columnValues, Map<String, Object> chunkValues) {
         Object[] values = new Object[table.columns().size()];
         if (columnValues != null) {
-            for (YstreamColumn columnValue : columnValues.getColumns()) {
+            List<YstreamColumn> columns = columnValues.getColumns().stream()
+                    .filter(ystreamColumn -> !ystreamColumn.getColumn().isDeleted()).collect(Collectors.toList());
+            for (YstreamColumn columnValue : columns) {
                 int index = table.columnWithName(columnValue.getColumn().getColumnName()).position() - 1;
                 try {
                     values[index] = columnValue.getData();
-                }
-                catch (YstreamSqlException e) {
+                } catch (YstreamSqlException e) {
                     throw new RuntimeException("convert data error", e);
                 }
             }

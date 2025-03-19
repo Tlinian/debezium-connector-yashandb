@@ -6,7 +6,7 @@
 package io.debezium.connector.yashandb.antlr.listener;
 
 import io.debezium.connector.yashandb.antlr.YashanDBDdlParser;
-import io.debezium.ddl.parser.oracle.generated.PlSqlParser;
+import io.debezium.connector.yashandb.ddl.parser.gen.YashanDBParser;
 import io.debezium.relational.TableId;
 
 /**
@@ -25,8 +25,9 @@ public class TruncateTableParserListener extends BaseParserListener {
     }
 
     @Override
-    public void enterTruncate_table(final PlSqlParser.Truncate_tableContext ctx) {
-        TableId tableId = new TableId(catalogName, schemaName, getTableName(ctx.tableview_name()));
+    public void enterTruncate_table(final YashanDBParser.Truncate_tableContext ctx) {
+        String targetSchema = getSchemaName(ctx.tableview_name());
+        TableId tableId = new TableId(catalogName,targetSchema== null? schemaName: targetSchema, getTableName(ctx.tableview_name()));
         parser.signalTruncateTable(tableId, ctx);
         super.enterTruncate_table(ctx);
     }
