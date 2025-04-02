@@ -148,6 +148,14 @@ public class ColumnDefinitionParserListener extends BaseParserListener {
                 columnEditor
                         .jdbcType(Types.TIMESTAMP)
                         .type("DATE");
+            } else if (ctx.native_datatype_element().TIME() != null) {
+                columnEditor
+                        .jdbcType(Types.TIME)
+                        .type("TIME");
+            } else if (ctx.native_datatype_element().JSON() != null) {
+                columnEditor
+                        .jdbcType(YasTypes.JSON)
+                        .type("JSON");
             } else if (ctx.native_datatype_element().TIMESTAMP() != null) {
                 if (ctx.WITH() != null
                         && ctx.TIME() != null

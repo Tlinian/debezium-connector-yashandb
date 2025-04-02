@@ -10,6 +10,7 @@ import io.debezium.relational.Tables;
 import junit.framework.TestCase;
 import org.assertj.core.api.Assertions;
 import org.awaitility.core.AssertionCondition;
+import org.junit.Test;
 
 import java.util.Objects;
 
@@ -68,5 +69,16 @@ public class YashanDBDdlParserTest extends TestCase {
         assert databaseTables.forTable(new TableId(null, "HSYS", "CUSTOMER_READING_ROUTE1111")) != null;
         assert Objects.equals(databaseTables.forTable(new TableId(null, "HSYS", "CUSTOMER_READING_ROUTE1111"))
                 .columnWithName("READING_ROUTE_CODE").typeName(), "NVARCHAR2");
+    }
+
+    @Test
+    public void testTime(){
+        String sql = "create table TEST_TIME_DB.TIME_TAB01(id int,id01 time)";
+        YashanDBDdlParser ddlParser = new YashanDBDdlParser(false, new YashanDBValueConverters(new YashanDBConnectorConfig(Configuration.create().build()),
+                null)
+                , Tables.TableFilter.includeAll());
+        Tables databaseTables = new Tables();
+        ddlParser.parse(sql, databaseTables);
+        System.out.println();
     }
 }

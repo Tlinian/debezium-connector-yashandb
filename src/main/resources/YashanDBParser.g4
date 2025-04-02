@@ -4979,6 +4979,7 @@ native_datatype_element
     | SIGNTYPE
     | SIMPLE_INTEGER
     | NVARCHAR2
+    | JSON
     | DEC
     | INTEGER
     | INT
@@ -5010,6 +5011,7 @@ native_datatype_element
     | MINUTE
     | SECOND
     | SDO_GEOMETRY
+    | TIME
     | TIMEZONE_HOUR
     | TIMEZONE_MINUTE
     | TIMEZONE_REGION

@@ -8,7 +8,7 @@ Debezium Connector YashanDB连接器同步全量快照数据，捕获并记录Ya
 
 | Connector Version | YashanDB Version                   | YashanDB Jdbc Version           | Debezium Version | Kafka Version | Java Version |
 | ----------------- | ---------------------------------- | ------------------------------- | ---------------- | ------------- | ------------ |
-| 2.4.2.0           | 支持YashanDB YStream的YashanDB版本 | 支持YashanDB YStream的Jdbc 版本 | 2.4.2.Final      | 2.x,3.x       | 11+          |
+| 2.4.2.x           | 支持YashanDB YStream的YashanDB版本 | 支持YashanDB YStream的Jdbc 版本 | 2.4.2.Final      | 2.x,3.x       | 11+          |
 
 ## 3. 部署
 
@@ -42,14 +42,14 @@ ALTER SYSTEM SET STREAM_POOL_SIZE = streamPoolSize;
 
 ```sql
 ALTER DATABASE ADD SUPPLEMENTAL LOG TABLE TYPE (HEAP);
-ALTER DATABASE ADD SUPPLEMENTAL LOG DATA ( PRIMARY KEY) COLUMNS;
+ALTER DATABASE ADD SUPPLEMENTAL LOG DATA ( ALL) COLUMNS;
 
 ```
 
 当您仅需要监听某些表时，可开启表级附加日志，方式如下：
 
 ```sql
-ALTER TABLE tablename ADD SUPPLEMENTAL LOG DATA ( PRIMARY KEY ) COLUMNS;
+ALTER TABLE tablename ADD SUPPLEMENTAL LOG DATA ( ALL ) COLUMNS;
 
 ```
 
@@ -215,6 +215,9 @@ DBMS_YSTREAM_ADM.START(server_name  IN VARCHAR(64));
 | topic.naming.strategy           | `io.debezium.schema.SchemaTopicNamingStrategy` | 用于确定数据更改、模式更改、事务、心跳事件等的主题名称的类名，默认为SchemaTopicNamingStrategy。 |
 | topic.delimiter                 | .                                              | 指定主题名称的分隔符，默认为. 。                             |
 | snapshot.max.threads            | 1                                              | 指定连接器在执行初始快照时使用的线程数。要启用并行初始快照，请将属性设置为大于1的值。在并行初始快照中，连接器同时处理多个表。这个功能正在孵化。 |
+| converters                      | No default                                     | 配置Debezium的自定义转换器                                   |
+| <converter_name>.type           | No default                                     | 配置Debezium的自定义转换器的类名                             |
+| <converter_name>.<param_name>   | No default                                     | 自定义转换器的配置，配置信息根据转换器的使用方式来设置       |
 
 其他参数请参考：[Debezium Connector for Oracle :: Debezium Documentation](https://debezium.io/documentation/reference/2.7/connectors/oracle.html#oracle-connector-properties)
 
@@ -230,7 +233,6 @@ DBMS_YSTREAM_ADM.START(server_name  IN VARCHAR(64));
 
 | YashanDB data type     | Literal type (schema type)                     |
 | :--------------------- | :--------------------------------------------- |
-| YashanDB data type     | Literal type (schema type)                     |
 | CHAR[(M)]              | STRING                                         |
 | NCHAR[(M)]             | STRING                                         |
 | VARCHAR[(M)]           | STRING                                         |
@@ -257,7 +259,129 @@ DBMS_YSTREAM_ADM.START(server_name  IN VARCHAR(64));
 | ROWID                  | STRING                                         |
 | UROWID                 | STRING                                         |
 
-## 7. 限制
+## 7. 数据定制化转换
+
+数据类型映射中，DATE、TIME、TIMESTAMP映射INT64，如果想定制成‘yyyy-MM-dd HH:mm:ss.SSSSSS’的形式。connector提供了三种转换器来定制化转换这三种类型的数据。
+
+| CustomConverter转换器                                        | 参数            | 说明                                            |
+| ------------------------------------------------------------ | --------------- | ----------------------------------------------- |
+| io.debezium.connector.yashandb.converters.TimestampToStringConverter | format:数据格式 | 将Timestamp类型数据转换成定制化格式的字符串数据 |
+| io.debezium.connector.yashandb.converters.DateToStringConverter | format:数据格式 | 将Date类型数据转换成定制化格式的字符串数据      |
+| io.debezium.connector.yashandb.converters.TimeToStringConverter | format:数据格式 | 将Time类型数据转换成定制化格式的字符串数据      |
+
+使用样例，在配置里填写以下
+
+```
+# 命名两个转换器，yashandb_timestamp_formatter转换器用于将TIMESTAMP类型数据转换，yashandb_date_formatter转换器用于将DATE类型数据转换
+”converters“: "yashandb_timestamp_formatter,yashandb_date_formatter"
+# yashandb_timestamp_formatter绑定成io.debezium.connector.yashandb.converters.TimestampToStringConverter类名
+”yashandb_timestamp_formatter.type“：”io.debezium.connector.yashandb.converters.TimestampToStringConverter“
+# timestamp数据格式化成yyyy-MM-dd HH:mm:ss.SSSSSS格式
+”yashandb_timestamp_formatter.format.datetime“：”yyyy-MM-dd HH:mm:ss.SSSSSS“
+# yashandb_date_formatter绑定成io.debezium.connector.yashandb.converters.DateToStringConverter类名
+”yashandb_date_formatter.type“：”io.debezium.connector.yashandb.converters.DateToStringConverter“
+# DATE数据格式化成yyyy-MM-dd格式
+”yashandb_date_formatter.format.date“：”yyyy-MM-dd“
+```
+
+#### 如何定制化编写一个转换器？
+
+参考连接https://debezium.io/documentation/reference/2.4/development/converters.html#custom-converters
+
+下面的示例显示了实现该接口的 Java 类的转换器实现io.debezium.spi.converter.CustomConverter：
+
+    public interface CustomConverter<S, F extends ConvertedField> {
+    
+        @FunctionalInterface
+        interface Converter {  
+            Object convert(Object input);
+        }
+    
+        public interface ConverterRegistration<S> { 
+            void register(S fieldSchema, Converter converter); 
+        }
+    
+        void configure(Properties props);
+    
+        void converterFor(F field, ConverterRegistration<S> registration); 
+    }
+
+
+​    
+- interface Converter 接口：将数据从一种类型转换为另一种类型的函数。
+- interface ConverterRegistration<S>接口：注册转换器的回调。
+- register(S fieldSchema, Converter converter)：为当前字段注册给定的架构和转换器。不应针对同一字段多次调用。
+- converterFor(F field, ConverterRegistration<S> registration)：注册自定义值和模式转换器以供特定字段使用。
+
+##### 自定义转换器方法
+
+接口的实现CustomConverter必须包括以下方法：
+
+1. configure()
+   1. 将连接器配置中指定的属性传递给转换器实例。该configure方法在连接器初始化时运行。您可以将转换器与多个连接器一起使用，并根据连接器的属性设置修改其行为。
+   2. 该configure方法接受以下参数：
+      1. props
+         包含要传递给转换器实例的属性。每个属性指定用于转换特定类型列的值的格式。
+2. converterFor()
+   1. 注册转换器以处理数据源中的特定列或字段。Debezium 调用该converterFor()方法以提示转换器调用转换registration。该converterFor方法对每一列运行一次。
+   2. 该方法接受以下参数：
+      1. field
+         传递有关所处理字段或列的元数据的对象。列元数据可以包括列或字段的名称、表或集合的名称、数据类型、大小等。
+      2. registration
+         io.debezium.spi.converter.CustomConverter.ConverterRegistration提供目标架构定义和用于转换列数据的代码的类型的对象。registration当源列与转换器应处理的类型匹配时，转换器将调用该参数。调用该register方法为架构中的每个列定义转换器。架构使用 Kafka Connect API 表示SchemaBuilder。将来，将添加独立的架构定义 API。
+
+##### Debezium 自定义转换器示例
+
+下面的示例实现了一个简单的转换器，它执行以下操作：
+
+- 运行该configure方法，该方法根据schema.name连接器配置中指定的属性值配置转换器。转换器配置特定于每个实例。
+
+
+- 运行该converterFor方法，该方法注册转换器来处理数据类型设置为的源列中的值isbn。
+  - STRING根据为属性指定的值识别目标架构schema.name。
+  - 将源列中的 ISBN 数据转换为String值。
+
+示例 1. 一个简单的自定义转换器
+
+    public static class IsbnConverter implements CustomConverter<SchemaBuilder, RelationalColumn> {
+    
+        private SchemaBuilder isbnSchema;
+    
+        @Override
+        public void configure(Properties props) {
+            isbnSchema = SchemaBuilder.string().name(props.getProperty("schema.name"));
+        }
+    
+        @Override
+        public void converterFor(RelationalColumn column,
+                ConverterRegistration<SchemaBuilder> registration) {
+    
+            if ("isbn".equals(column.typeName())) {
+                registration.register(isbnSchema, x -> x.toString());
+            }
+        }
+    }
+##### Debezium 和 Kafka Connect API 模块依赖关系
+
+自定义转换器 Java 项目对 Debezium API 和 Kafka Connect API 库模块具有编译依赖项。这些编译依赖项必须包含在您的项目中pom.xml，如以下示例所示：
+
+```
+<dependency>
+    <groupId>io.debezium</groupId>
+    <artifactId>debezium-api</artifactId>
+    <version>${version.debezium}</version> 
+</dependency>
+<dependency>
+    <groupId>org.apache.kafka</groupId>
+    <artifactId>connect-api</artifactId>
+    <version>${version.kafka}</version> 
+</dependency>
+```
+
+- ${version.debezium}表示 Debezium 连接器的版本，根据connector支持的版本，这里应该是2.4.2.Final。
+- ${version.kafka}代表您环境中的 Apache Kafka 版本。
+
+## 8. 限制
 
 1. 受限于YStream，不支持自定义数据类型，XMLTYPE, JSON数据类型。
 
@@ -278,3 +402,7 @@ exec DBMS_YSTREAM_ADM.START('server1');
 #### 8.3 Decimal数值同步到Kafka后，为什么序列化出来数据出错呢？
 
 A: debezium会将负scale的Decimal会进行特殊处理，建议使用参数`decimal.handling.mode`=string来规避。
+
+#### 8.4 DATE\TIME\TIMESTAMP数值同步到Kafka后，为什么是时间戳的形式，而不是‘yyyy-MM-dd HH:mm:ss.SSSSSS’的形式？
+
+A: debezium的默认处理方式是将时间类型映射到INT64，如果需要映射到固定格式数据，可参考《第七点 数据定制化转换》。
