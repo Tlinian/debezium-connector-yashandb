@@ -1,0 +1,20 @@
+JarIndex-Version: 1.0
+
+debezium-connector-yashandb-2.4.2.Final.jar
+META-INF
+META-INF/maven
+META-INF/maven/io.debezium
+META-INF/maven/io.debezium/debezium-connector-yashandb
+META-INF/services
+io
+io/debezium
+io/debezium/connector
+io/debezium/connector/yashandb
+io/debezium/connector/yashandb/antlr
+io/debezium/connector/yashandb/antlr/listener
+io/debezium/connector/yashandb/converters
+io/debezium/connector/yashandb/metadata
+io/debezium/connector/yashandb/transforms
+io/debezium/connector/yashandb/transforms/outbox
+io/debezium/connector/yashandb/ystream
+
