@@ -22,15 +22,15 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
- * Emits change data based on a single {@link YStreamDmlRecord} event.
+ * Emits change data based on a single {@link YStreamDataChangeRecord} event.
  *
  * @author Gunnar Morling
  */
-public class YStreamChangeRecordEmitter extends BaseChangeRecordEmitter<YStreamDmlRecord> {
+public class YStreamChangeRecordEmitter extends BaseChangeRecordEmitter<YStreamDataChangeRecord> {
 
-    private final YStreamDmlRecord record;
+    private final YStreamDataChangeRecord record;
 
-    public YStreamChangeRecordEmitter(YashanDBConnectorConfig connectorConfig, YashanDBPartition partition, OffsetContext offset, YStreamDmlRecord record,
+    public YStreamChangeRecordEmitter(YashanDBConnectorConfig connectorConfig, YashanDBPartition partition, OffsetContext offset, YStreamDataChangeRecord record,
                                       Table table, YashanDBDatabaseSchema schema, Clock clock, Object[] newValues, Object[] oldValues) {
         super(connectorConfig, partition, offset, schema, table, clock, oldValues,
                 newValues);
@@ -39,17 +39,20 @@ public class YStreamChangeRecordEmitter extends BaseChangeRecordEmitter<YStreamD
 
     @Override
     public Operation getOperation() {
-        switch (record.getYstreamDml().getDmlType()) {
-            case INSERT:
-                return Operation.CREATE;
-            case DELETE:
-                return Operation.DELETE;
-            case UPDATE:
-                return Operation.UPDATE;
-            // TODO : return Operation.TRUNCATE;
-            case CHUNK:
-            default:
-                throw new IllegalArgumentException("Received event of unexpected command type: " + record);
+        if (record.isTruncateTable()) {
+            return Operation.TRUNCATE;
+        } else {
+            switch (record.getYstreamDml().getDmlType()) {
+                case INSERT:
+                    return Operation.CREATE;
+                case DELETE:
+                    return Operation.DELETE;
+                case UPDATE:
+                    return Operation.UPDATE;
+                case CHUNK:
+                default:
+                    throw new IllegalArgumentException("Received event of unexpected command type: " + record);
+            }
         }
     }
 

@@ -29,8 +29,6 @@ import java.util.concurrent.ConcurrentMap;
 
 /**
  * The schema of an YashanDB database.
- *
- * @author Gunnar Morling
  */
 public class YashanDBDatabaseSchema extends HistorizedRelationalDatabaseSchema {
 

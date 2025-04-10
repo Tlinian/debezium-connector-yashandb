@@ -9,7 +9,7 @@ import java.math.BigInteger;
 import java.util.Objects;
 
 /**
- * Oracle System Change Number implementation
+ * YashanDB System Change Number implementation
  *
  * @author Chris Cranford
  */

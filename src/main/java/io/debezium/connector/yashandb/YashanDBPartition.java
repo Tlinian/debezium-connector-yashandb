@@ -49,7 +49,7 @@ public class YashanDBPartition extends AbstractPartition implements Partition {
 
     @Override
     public String toString() {
-        return "OraclePartition [sourcePartition=" + getSourcePartition() + "]";
+        return "YashanDBPartition [sourcePartition=" + getSourcePartition() + "]";
     }
 
     static class Provider implements Partition.Provider<YashanDBPartition> {

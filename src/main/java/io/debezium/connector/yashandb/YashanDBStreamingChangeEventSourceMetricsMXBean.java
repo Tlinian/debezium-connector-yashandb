@@ -10,7 +10,7 @@ import io.debezium.pipeline.metrics.StreamingChangeEventSourceMetricsMXBean;
 import java.util.Set;
 
 /**
- * The JMX exposed interface for Oracle streaming metrics.
+ * The JMX exposed interface for YashanDB streaming metrics.
  */
 public interface YashanDBStreamingChangeEventSourceMetricsMXBean extends StreamingChangeEventSourceMetricsMXBean {
 

@@ -1536,7 +1536,7 @@ tablespace_encryption_spec
     ;
 
 logging_clause
-    : LOGGING
+    : (LOGGING (ASYNC)?)
      | NOLOGGING
      | FILESYSTEM_LIKE_LOGGING
     ;
@@ -1819,7 +1819,7 @@ create_cluster
     ;
 
 create_table
-    : CREATE (GLOBAL TEMPORARY)? TABLE tableview_name
+    : CREATE (((GLOBAL | PRIVATE) TEMPORARY) | SHARDED | DUPLICATED)? TABLE (IF NOT EXISTS)? tableview_name
         (SHARING '=' (NONE | METADATA | DATA | EXTENDED DATA))?
         (relational_table | object_table | xmltype_table) (USAGE QUEUE)? (AS select_only_statement)?
     ;
@@ -1889,6 +1889,7 @@ relational_table
           (DEFAULT COLLATION collation_name)?
           (ON COMMIT (DELETE | PRESERVE) ROWS)?
           physical_properties?
+          lsc_table_properties?
           column_properties?
           table_partitioning_clauses?
           (CACHE | NOCACHE)? (RESULT_CACHE '(' MODE (DEFAULT | FORCE) ')')?
@@ -1896,6 +1897,34 @@ relational_table
           (ROWDEPENDENCIES | NOROWDEPENDENCIES)?
           (enable_disable_clause+)? row_movement_clause? logical_replication_clause? flashback_archive_clause?
         ;
+
+lsc_table_properties
+    : compression_clause? table_sort_clause? mcol_ttl_clause? transformer_clause? mcolability_clause? tableview_name
+    ;
+
+compression_clause
+    : COMPRESSION ((compression_type (HIGH | MEDIUM | LOW) ) | UNCOMPRESSED)
+    ;
+
+compression_type
+    : LZ4 | ZSTD
+    ;
+
+table_sort_clause
+    : ORDER BY '(' column_name (',' column_name)* ')' (NULLS (FIRST | LAST))? (ASC | DESC)? (SCOL)?
+    ;
+
+mcol_ttl_clause
+    : MCOL TTL constant
+    ;
+
+transformer_clause
+    : (ENABLE | DISABLE) (TRANSFORM | COMPACT | BUILD AC) (TRANSFORM | COMPACT | BUILD AC)+?
+    ;
+
+mcolability_clause
+    : (ENABLE | DISABLE) MCOL
+    ;
 
 relational_property
     : ( out_of_line_constraint
@@ -2168,6 +2197,8 @@ physical_attributes_clause
       | INITRANS inittrans=UNSIGNED_INTEGER
       | MAXTRANS maxtrans=UNSIGNED_INTEGER
       | SEGMENT CREATION (IMMEDIATE | DEFERRED)
+      | TABLESPACE tablespace
+      | TABLESPACE SET tablespace
       | storage_clause
       | compute_clauses
       )+
@@ -2187,6 +2218,7 @@ storage_clause
          | FLASH_CACHE (KEEP | NONE | DEFAULT)
          | CELL_FLASH_CACHE (KEEP | NONE | DEFAULT)
          | ENCRYPT
+         | MAXSIZE max_size=size_clause
          )+
        ')'
     ;
@@ -2197,17 +2229,33 @@ deferred_segment_creation
 
 segment_attributes_clause
     : ( physical_attributes_clause
+      | temp_table_attr_clause
+      | table_partitioning_clauses
       | TABLESPACE tablespace_name=id_expression
       // Added to support an unusual, undocumented syntax with Oracle 19
       | table_compression
       | logging_clause
+      | lob_storage_clause
+      | parallel_clause
+      | cache_or_nocache
+      | readonly_clause
+      | nested_table_col_properties
+      | ENCRYPT encryption_spec
       | inmemory_table_clause
       | ORGANIZATION (HEAP | TAC | LSC | EXTERNAL external_table_clause)
       )+
     ;
 
+readonly_clause
+    : READONLY | READWRITE
+    ;
+
+temp_table_attr_clause
+    : ON COMMIT (( (DROP | PRESERVE) DEFINITION) | ((DELETE | PRESERVE) ROWS))
+    ;
+
 external_table_clause
-    : '('? (TYPE access_driver_type)? external_table_data_props* ')'? parallel_clause? (REJECT LIMIT (UNSIGNED_INTEGER | UNLIMITED))?
+    : '('? (TYPE access_driver_type)? external_table_data_props? ')'? parallel_clause? (REJECT LIMIT (UNSIGNED_INTEGER | UNLIMITED))?
     ;
 
 access_driver_type
@@ -2215,9 +2263,24 @@ access_driver_type
     ;
 
 external_table_data_props
-    : DEFAULT DIRECTORY quoted_string
-    | ACCESS PARAMETERS '(' (et_oracle_loader | et_oracle_datapump* | et_oracle_hdfs_hive | USING CLOB subquery) ')'
-    | LOCATION '(' et_directory_spec? et_location_specifier (',' et_directory_spec? et_location_specifier )* ')'
+    : (DEFAULT DIRECTORY quoted_string) ?
+     (ACCESS PARAMETERS '(' record_format_info_clause? field_definitions_clause? (et_oracle_loader | et_oracle_datapump* | et_oracle_hdfs_hive | USING CLOB subquery) ')')?
+     (LOCATION '(' et_directory_spec? et_location_specifier (',' et_directory_spec? et_location_specifier )* ')')?
+    ;
+
+field_definitions_clause
+    : FIELDS ((TERMINATED BY (quoted_string| HEX_STRING_LIT | HEX_STRING_LIT)) | (OPTIONALLY ENCLOSED BY quoted_string))?
+    ;
+
+record_format_info_clause
+    : RECORDS ((DELIMITED BY NEWLINE_) | output_files_clause)?
+    ;
+
+output_files_clause
+    : (NOBADFILE | BADFILE file_pos_clause| NOLOGFILE | LOGFILE file_pos_clause)?
+    ;
+file_pos_clause
+    : (quoted_string ':')? quoted_string
     ;
 
 et_oracle_loader
@@ -2547,7 +2610,7 @@ truncate_table
     ;
 
 drop_table
-    : DROP TABLE tableview_name (AS tableview_name)? (CASCADE CONSTRAINTS)? PURGE? (AS quoted_string)? FORCE?
+    : DROP TABLE (IF EXISTS)? tableview_name (AS tableview_name)? (CASCADE CONSTRAINTS)? PURGE? (AS quoted_string)? FORCE?
     ;
 
 drop_view
@@ -2905,8 +2968,13 @@ alter_table
       | alter_table_partitioning
 //TODO      | alter_external_table
       | move_table_clause
+      | reclaim_table_clause
       )
       ((enable_disable_clause | enable_or_disable (TABLE LOCK | ALL TRIGGERS) )+)?
+    ;
+
+reclaim_table_clause
+    : RECLAIM SEGMENT (PRIMARY_SPACE tablespace PARTITION partition_name)? TABLESPACE tablespace
     ;
 
 alter_table_properties
@@ -2928,6 +2996,8 @@ alter_table_properties_1
       | (CACHE | NOCACHE)
       | RESULT_CACHE '(' MODE (DEFAULT | FORCE) ')'
       | upgrade_table_clause
+      | readonly_clause
+      | lsc_properties_clause
       | records_per_block_clause
       | parallel_clause
       | row_movement_clause
@@ -2937,10 +3007,34 @@ alter_table_properties_1
       alter_iot_clauses?
     ;
 
+lsc_properties_clause
+    : enable_xfmr_clause
+    | alter_mcol_ttl_clause
+    | mcol_ability_clause
+    | force_xfmr_clause
+    ;
+
+force_xfmr_clause
+    : ALTER SLICE ALL (STABLE | COMPACT | CLEAN) (ASYNC)?
+    ;
+
+mcol_ability_clause
+    : (ENABLE | DISABLE) MCOL (ORDER BY)?
+    ;
+
+enable_xfmr_clause
+    : (ENABLE | DISABLE) (TRANSFORM| COMPACT | BUILD AC)+?
+    ;
+
+alter_mcol_ttl_clause
+    : ALTER mcol_ttl_clause
+    ;
+
 alter_table_partitioning
     : add_table_partition
     | drop_table_partition
     | merge_table_partition
+    | merge_table_subpartition
     | modify_table_partition
     | split_table_partition
     | truncate_table_partition
@@ -2960,11 +3054,22 @@ drop_table_partition
     ;
 
 merge_table_partition
-    : MERGE PARTITION partition_name AND partition_name INTO PARTITION partition_name
+    : MERGE (PARTITION partition_name AND partition_name INTO PARTITION partition_name
+    | PARTITIONS partition_key_value ((',' partition_key_value) | (TO partition_key_value)) (INTO PARTITION (partition_name)? table_partition_description?)? (UPDATE (GLOBAL)? INDEXES)?
+    )
+    ;
+
+merge_table_subpartition
+    : SUBPARTITIONS partition_key_value ((',' partition_key_value) | (TO partition_key_value))
+     (INTO SUBPARTITION (partition_name)? table_partition_description?)? (UPDATE (GLOBAL)? INDEXES)?
+    ;
+
+partition_or_key_value
+    : (partition_name | FOR '(' partition_key_value (',' partition_key_value)* ')' )
     ;
 
 modify_table_partition
-    : MODIFY PARTITION partition_name (
+    : MODIFY (PARTITION | SUBPARTITION) partition_name (
              ((ADD | DROP) list_values_clause)? (ADD range_subpartition_desc)? (REBUILD? UNUSABLE LOCAL INDEXES)?
              | shrink_clause )
     ;
@@ -2972,8 +3077,9 @@ modify_table_partition
 split_table_partition
     : SPLIT partition_extended_names (
             AT '(' literal (',' literal)* ')' INTO '(' range_partition_desc (',' range_partition_desc)*  ')'
+            | VALUES '(' literal (',' literal)* ')' INTO '(' list_partition_desc (',' list_partition_desc)*  ')'
             | INTO '(' (range_partition_desc (',' range_partition_desc)* | list_partition_desc (',' list_partition_desc)* ) ')'
-            )
+            ) (UPDATE (GLOBAL)? INDEXES)?
     ;
 
 truncate_table_partition
@@ -2992,7 +3098,7 @@ coalesce_table_partition
     ;
 
 alter_interval_partition
-    : SET INTERVAL '(' (constant | expression)? ')'
+    : SET ((INTERVAL '(' (constant | expression)? ')') | (STORE IN '(' tablespace (',' tablespace) ')'))
     ;
 
 partition_extended_names
@@ -3127,7 +3233,7 @@ collection_item
     ;
 
 rename_column_clause
-    : RENAME COLUMN old_column_name TO new_column_name
+    : RENAME (COLUMN)? old_column_name TO new_column_name
     ;
 
 old_column_name
@@ -3148,7 +3254,7 @@ add_modify_drop_column_clauses
 
 drop_column_clause
     : SET UNUSED (COLUMN column_name| ('(' column_name (',' column_name)* ')' )) (CASCADE CONSTRAINTS | INVALIDATE)*
-    | DROP (COLUMN column_name | '(' column_name (',' column_name)* ')' ) (CASCADE CONSTRAINTS | INVALIDATE)* (CHECKPOINT UNSIGNED_INTEGER)?
+    | DROP ((COLUMN)? column_name | '(' column_name (',' column_name)* ')' ) (CASCADE CONSTRAINTS | INVALIDATE)* (CHECKPOINT UNSIGNED_INTEGER)?
     | DROP (UNUSED COLUMNS | COLUMNS CONTINUE) (CHECKPOINT UNSIGNED_INTEGER)
     ;
 
@@ -3174,14 +3280,18 @@ modify_col_substitutable
     ;
 
 add_column_clause
-    : ADD (COLUMN) (column_definition | virtual_column_definition)
+    : ADD (COLUMN)? (column_definition | virtual_column_definition) (lob_clauses)?
     | ADD ('(' (column_definition | virtual_column_definition) (',' (column_definition
               | virtual_column_definition)
               )*
           ')'
           | ( column_definition | virtual_column_definition ))
-       column_properties?
+       column_properties? (lob_clauses)?
 //TODO       (','? out_of_line_part_storage )
+    ;
+
+lob_clauses
+    : lob_storage_clause+
     ;
 
 alter_varray_col_properties
@@ -3398,7 +3508,7 @@ drop_constraint_clause
 
 drop_primary_key_or_unique_or_generic_clause
     : (PRIMARY KEY | UNIQUE '(' column_name (',' column_name)* ')') CASCADE? ((KEEP | DROP) INDEX)? ONLINE?
-    | CONSTRAINT constraint_name CASCADE?
+    | CONSTRAINT constraint_name CASCADE? ((KEEP | DROP) INDEX)? ONLINE?
     ;
 
 add_constraint
@@ -5259,6 +5369,7 @@ regular_id
     | LONG
     | LOOP
     | NUMBER
+    | ORACLE_LOADER
     | ORADATA
     | OSERROR
     | OUT
@@ -5296,6 +5407,7 @@ regular_id
     | WARNING
     | WHILE
     | XMLAGG
+    | YASDB_LOADER
     | YMINTERVAL_UNCONSTRAINED
     | REGR_
     | VAR_

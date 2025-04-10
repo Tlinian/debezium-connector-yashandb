@@ -8,7 +8,7 @@ package io.debezium.connector.yashandb;
 import io.debezium.relational.TableId;
 
 /**
- * Specialized parser implementation for Oracle {@link TableId} instances.
+ * Specialized parser implementation for YashanDB {@link TableId} instances.
  *
  * @author Chris Cranford
  */
@@ -17,7 +17,7 @@ public class YashanDBTableIdParser {
     public static TableId parse(String identifier) {
         final String[] parts = TableId.parseParts(identifier);
         if (parts.length > 3) {
-            // Oracle identifiers may be in the format of "domain"."schema"."table" where the domain is also
+            // YashanDB identifiers may be in the format of "domain"."schema"."table" where the domain is also
             // a multi-dotted value. In this case, we should effectively treat the last two parts as the
             // schema and table respectively while concatenating the former parts as the catalog.
             final String tableName = parts[parts.length - 1];

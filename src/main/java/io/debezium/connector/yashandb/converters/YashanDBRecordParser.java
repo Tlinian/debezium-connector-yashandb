@@ -12,9 +12,6 @@ import org.apache.kafka.connect.errors.DataException;
 
 import java.util.Set;
 
-/**
- * @author Chris Cranford
- */
 public class YashanDBRecordParser extends RecordParser {
 
     public static final String SCN_KEY = "scn";

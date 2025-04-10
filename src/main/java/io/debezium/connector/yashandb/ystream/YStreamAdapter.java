@@ -96,7 +96,7 @@ public class YStreamAdapter extends AbstractStreamingAdapter {
 
     @Override
     public OffsetContext.Loader<YashanDBOffsetContext> getOffsetContextLoader() {
-        return new YStreamOracleOffsetContextLoader(connectorConfig);
+        return new YStreamOffsetContextLoader(connectorConfig);
     }
 
     @Override

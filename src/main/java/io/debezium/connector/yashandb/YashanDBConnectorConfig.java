@@ -38,9 +38,7 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Connector configuration for Oracle.
- *
- * @author Gunnar Morling
+ * Connector configuration for YashanDB.
  */
 public class YashanDBConnectorConfig extends HistorizedRelationalDatabaseConnectorConfig {
 

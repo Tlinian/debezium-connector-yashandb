@@ -13,9 +13,7 @@ import io.debezium.converters.spi.RecordParser;
 import io.debezium.converters.spi.SerializerType;
 
 /**
- * An implementation of {@link CloudEventsProvider} for Oracle.
- *
- * @author Chris Cranford
+ * An implementation of {@link CloudEventsProvider} for YashanDB.
  */
 public class YashanDBCloudEventsProvider implements CloudEventsProvider {
     @Override

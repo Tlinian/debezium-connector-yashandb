@@ -22,11 +22,11 @@ import java.util.Map;
  * The {@link OffsetContext} loader implementation for the YashanDB YStream adapter
  *
  */
-public class YStreamOracleOffsetContextLoader implements OffsetContext.Loader<YashanDBOffsetContext> {
-    private static final Logger LOGGER = LoggerFactory.getLogger(YStreamOracleOffsetContextLoader.class);
+public class YStreamOffsetContextLoader implements OffsetContext.Loader<YashanDBOffsetContext> {
+    private static final Logger LOGGER = LoggerFactory.getLogger(YStreamOffsetContextLoader.class);
     private final YashanDBConnectorConfig connectorConfig;
 
-    public YStreamOracleOffsetContextLoader(YashanDBConnectorConfig connectorConfig) {
+    public YStreamOffsetContextLoader(YashanDBConnectorConfig connectorConfig) {
         this.connectorConfig = connectorConfig;
     }
 

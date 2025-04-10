@@ -39,7 +39,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
- * A {@link StreamingChangeEventSource} for Oracle.
+ * A {@link StreamingChangeEventSource} for YashanDB.
  *
  * @author Gunnar Morling
  */

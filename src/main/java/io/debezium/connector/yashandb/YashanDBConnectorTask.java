@@ -42,7 +42,7 @@ import java.util.stream.Collectors;
 public class YashanDBConnectorTask extends BaseSourceTask<YashanDBPartition, YashanDBOffsetContext> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(YashanDBConnectorTask.class);
-    private static final String CONTEXT_NAME = "oracle-connector-task";
+    private static final String CONTEXT_NAME = "yashandb-connector-task";
 
     private volatile YashanDBTaskContext taskContext;
     private volatile ChangeEventQueue<DataChangeEvent> queue;

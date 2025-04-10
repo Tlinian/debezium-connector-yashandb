@@ -26,9 +26,9 @@ public class CreateTableParserListener extends BaseParserListener {
 
     private final List<ParseTreeListener> listeners;
     private TableEditor tableEditor;
-    private String catalogName;
-    private String schemaName;
-    private YashanDBDdlParser parser;
+    private final String catalogName;
+    private final String schemaName;
+    private final YashanDBDdlParser parser;
     private ColumnDefinitionParserListener columnDefinitionParserListener;
     private String inlinePrimaryKey;
 
@@ -46,14 +46,13 @@ public class CreateTableParserListener extends BaseParserListener {
             throw new ParsingException(null, "Only relational tables are supported");
         }
         String targetSchemaName = getSchemaName(ctx.tableview_name());
-        TableId tableId = new TableId(catalogName, targetSchemaName == null ? schemaName: targetSchemaName, getTableName(ctx.tableview_name()));
+        TableId tableId = new TableId(catalogName, targetSchemaName == null ? schemaName : targetSchemaName, getTableName(ctx.tableview_name()));
         if (parser.getTableFilter().isIncluded(tableId)) {
             if (parser.databaseTables().forTable(tableId) == null) {
                 tableEditor = parser.databaseTables().editOrCreateTable(tableId);
                 super.enterCreate_table(ctx);
             }
-        }
-        else {
+        } else {
             LOGGER.debug("Ignoring CREATE TABLE statement for non-captured table {}", tableId);
         }
     }
@@ -90,8 +89,7 @@ public class CreateTableParserListener extends BaseParserListener {
                 columnDefinitionParserListener = new ColumnDefinitionParserListener(tableEditor, columnEditor, parser, listeners);
                 columnDefinitionParserListener.enterColumn_definition(ctx);
                 listeners.add(columnDefinitionParserListener);
-            }
-            else {
+            } else {
                 columnDefinitionParserListener.setColumnEditor(columnEditor);
             }
         }, tableEditor);
