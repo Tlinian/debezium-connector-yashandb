@@ -10,9 +10,6 @@ import io.debezium.converters.spi.CloudEventsMaker;
 import io.debezium.converters.spi.RecordParser;
 import io.debezium.converters.spi.SerializerType;
 
-/**
- * @author Chris Cranford
- */
 public class YashanDBCloudEventsMaker extends CloudEventsMaker {
 
     public YashanDBCloudEventsMaker(RecordParser parser, SerializerType contentType, String dataSchemaUriBase) {

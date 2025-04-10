@@ -28,7 +28,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * The metrics implementation for Oracle connector streaming phase.
+ * The metrics implementation for YashanDB connector streaming phase.
  */
 @ThreadSafe
 public class YashanDBStreamingChangeEventSourceMetrics extends DefaultStreamingChangeEventSourceMetrics<YashanDBPartition>

@@ -39,7 +39,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * Handler for Oracle DDL and DML events. Just forwards events to the {@link EventDispatcher}.
+ * Handler for YashanDB DDL and DML events. Just forwards events to the {@link EventDispatcher}.
  *
  * @author Gunnar Morling
  */
@@ -133,7 +133,7 @@ class YStreamEventHandler {
             if (record.getYstreamLcrInterface() instanceof YstreamDdl) {
                 dispatchSchemaChangeEvent((YstreamDdl) ystreamLcrInterface);
             } else if (ystreamLcrInterface instanceof YstreamDml) {
-                processDml(new YStreamDmlRecord((YstreamDml) ystreamLcrInterface, record.getTableMetadata()), (YstreamDml) ystreamLcrInterface);
+                processDml(new YStreamDataChangeRecord((YstreamDml) ystreamLcrInterface, record.getTableMetadata()), (YstreamDml) ystreamLcrInterface);
             } else if (ystreamLcrInterface instanceof YstreamChunk) {
                 processChunk((YstreamChunk) ystreamLcrInterface);
             } else if (ystreamLcrInterface instanceof YstreamXactBegin) {
@@ -155,7 +155,7 @@ class YStreamEventHandler {
         }
     }
 
-    private void processDml(YStreamDmlRecord record, YstreamDml dml) throws InterruptedException {
+    private void processDml(YStreamDataChangeRecord record, YstreamDml dml) throws InterruptedException {
 
         if (dml.hasChunkData()) {
             // If the row has chunk data, the RowLCR cannot be immediately dispatched.
@@ -170,14 +170,14 @@ class YStreamEventHandler {
             });
         } else {
             // Since the row has no chunk data, it can be dispatched immediately.
-            dispatchDataChangeEvent(record, dml, null);
+            dispatchDataChangeEvent(record, null);
         }
     }
 
-    private void dispatchDataChangeEvent(YStreamDmlRecord record, YstreamDml dml, Map<String, Object> chunkValues) throws InterruptedException {
-        LOGGER.info("Processing DML event {}", dml);
-
-        TableId tableId = getTableId(dml);
+    private void dispatchDataChangeEvent(YStreamDataChangeRecord record, Map<String, Object> chunkValues) throws InterruptedException {
+        LOGGER.info("Processing DML event {}", record.getYstreamDml());
+        boolean truncateTable = record.isTruncateTable();
+        TableId tableId = getTableId(record);
 
         Table table = schema.tableFor(tableId);
         if (table == null) {
@@ -243,9 +243,11 @@ class YStreamEventHandler {
             }
         }
         Table tableFor = schema.tableFor(tableId);
-        Object[] newValues = YStreamChangeRecordEmitter.getColumnValues(tableFor, record.getYstreamDml().getNewValues(), chunkValues);
-        Object[] oldValues = YStreamChangeRecordEmitter.getColumnValues(tableFor, record.getYstreamDml().getOldValues(), oldChunkValues);
-        YStreamChangeRecordEmitter.calculateColumnValues(oldValues, newValues);
+        Object[] newValues = truncateTable ? null : YStreamChangeRecordEmitter.getColumnValues(tableFor, record.getYstreamDml().getNewValues(), chunkValues);
+        Object[] oldValues = truncateTable ? null : YStreamChangeRecordEmitter.getColumnValues(tableFor, record.getYstreamDml().getOldValues(), oldChunkValues);
+        if (!truncateTable){
+            YStreamChangeRecordEmitter.calculateColumnValues(oldValues, newValues);
+        }
         dispatcher.dispatchDataChangeEvent(
                 partition,
                 tableId,
@@ -284,27 +286,30 @@ class YStreamEventHandler {
 
     private void processTruncateEvent(YstreamDdl ddl) {
         LOGGER.debug("Handling truncate event");
-        // TODO:
-        // DefaultRowLCR rowLCR = new DefaultRowLCR(
-        // ddlLcr.getSourceDatabaseName(),
-        // ddlLcr.getCommandType(),
-        // ddlLcr.getObjectOwner(),
-        // ddlLcr.getObjectName(),
-        // ddlLcr.getTransactionId(),
-        // ddlLcr.getTag(),
-        // ddlLcr.getPosition(),
-        // ddlLcr.getSourceTime());
-        // try {
-        // dispatchDataChangeEvent(rowLCR, null);
-        // }
-        // catch (InterruptedException e) {
-        // throw new RuntimeException("Interrupted", e);
-        // }
+        YStreamDataChangeRecord streamDmlRecord = new YStreamDataChangeRecord(new YStreamTruncate(ddl.getSize(),
+                ddl.getPosition(),
+                ddl.getSessionId(),
+                ddl.getTableId(),
+                ddl.getOldTableId(),
+                ddl.isRecover(),
+                ddl.getTransactionId(),
+                ddl.getDdlType(),
+                ddl.getObjectType(),
+                ddl.getSsn(),
+                ddl.getCurrentScn(),
+                ddl.getDdlText(),
+                ddl.getYstreamMetadata()));
+        try {
+            dispatchDataChangeEvent(streamDmlRecord, null);
+        } catch (InterruptedException e) {
+            throw new RuntimeException("Interrupted", e);
+        }
 
     }
 
-    private TableId getTableId(YstreamDml dml) {
-        return new TableId("", dml.getTableId().getSchema(), dml.getTableId().getTable());
+    private TableId getTableId(YStreamDataChangeRecord dmlRecord) {
+        return dmlRecord.isTruncateTable() ? new TableId("", dmlRecord.getyStreamTruncate().getTableId().getSchema(), dmlRecord.getyStreamTruncate().getTableId().getTable())
+                : new TableId("", dmlRecord.getYstreamDml().getTableId().getSchema(), dmlRecord.getYstreamDml().getTableId().getTable());
     }
 
     private TableId getTableId(YstreamDdl ddl) {
@@ -397,8 +402,7 @@ class YStreamEventHandler {
             }
 
             columnChunks.clear();
-            dispatchDataChangeEvent(new YStreamDmlRecord((YstreamDml) currentRecord.getYstreamLcrInterface(), currentRecord.getTableMetadata()),
-                    (YstreamDml) currentRecord.getYstreamLcrInterface(),
+            dispatchDataChangeEvent(new YStreamDataChangeRecord((YstreamDml) currentRecord.getYstreamLcrInterface(), currentRecord.getTableMetadata()),
                     resolvedChunkValues);
         } catch (InterruptedException e) {
             Thread.interrupted();

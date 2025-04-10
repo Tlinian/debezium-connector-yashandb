@@ -25,16 +25,8 @@ import java.util.stream.Collectors;
  * Represents either a single or a collection of commit {@link Scn} positions that collectively
  * represents the high-watermark point for streaming changes.
  *
- * In a standalone Oracle environment, a commit {@link Scn} would normally represent a single position or
- * system change number in the logs as there is only ever a single redo thread. However, in an Oracle RAC
- * environment where each node maintains its own redo, there are multiple redo threads which maintain
- * their own "commit" point in the logs that may differ.
- *
- * This class is meant to encapsulate the Oracle RAC environment by exposing a "commit scn" as a single
- * representation that spans all nodes within the cluster as one logical unit, much like what we expect
- * when integrating with a standalone Oracle database.
- *
- * @author Chris Cranford
+ * In a standalone YashanDB environment, a commit {@link Scn} would normally represent a single position or
+ * system change number in the logs as there is only ever a single redo thread.
  */
 public class CommitScn implements Comparable<Scn> {
 

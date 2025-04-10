@@ -7,7 +7,7 @@
 package io.debezium.connector.yashandb.ystream;
 
 /**
- * This interface allows the Oracle schema change event emitter to pass a truncate event
+ * This interface allows the YashanDB schema change event emitter to pass a truncate event
  * back to the caller to be handled differently.
  */
 public interface TruncateReceiver {

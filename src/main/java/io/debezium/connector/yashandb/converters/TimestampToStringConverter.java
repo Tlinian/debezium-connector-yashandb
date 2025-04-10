@@ -23,11 +23,9 @@ import java.util.Properties;
 import java.util.function.Predicate;
 
 /**
- * Oracle reports {@code NUMBER(1)} as a numeric column type by default.  There may be some cases
- * where the consumer would prefer this to be translated to a {@code BOOLEAN} and this converter
+ * YashanDB reports {@code Timestamp} as a long date type by default.  There may be some cases
+ * where the consumer would prefer this to be translated to a {@code String} and this converter
  * provides this behavior out of the box.
- *
- * @author Chris Cranford
  */
 public class TimestampToStringConverter implements CustomConverter<SchemaBuilder, RelationalColumn> {
 

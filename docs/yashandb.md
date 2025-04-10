@@ -383,7 +383,7 @@ DBMS_YSTREAM_ADM.START(server_name  IN VARCHAR(64));
 
 ## 8. 限制
 
-1. 受限于YStream，不支持自定义数据类型，XMLTYPE, JSON数据类型。
+1. 受限于YStream，不支持自定义数据类型、XMLTYPE、 JSON数据类型。
 
 ## 8. Q&A
 
@@ -406,3 +406,20 @@ A: debezium会将负scale的Decimal会进行特殊处理，建议使用参数`de
 #### 8.4 DATE\TIME\TIMESTAMP数值同步到Kafka后，为什么是时间戳的形式，而不是‘yyyy-MM-dd HH:mm:ss.SSSSSS’的形式？
 
 A: debezium的默认处理方式是将时间类型映射到INT64，如果需要映射到固定格式数据，可参考《第七点 数据定制化转换》。
+
+#### 8.5 YashanDB Connector是否支持断点续传，任务停止或者失败后，是否能从上一个提交的点位开始捕获增量数据？
+
+A：YashanDB Connector支持断点续传，基于Kafka的两阶段提交，任务停止或者失败后，上一个提交成功的日志点位会记录在Kafka的元数据信息中，恢复任务后，Connector会获取到最后一个提交成功的日志点位，并从该点位开始抓取数据，确保数据精确一次同步到Kafka的主题上。
+
+#### 8.6 YashanDB Connector查看运行的任务日志，连接器会捕获整个库的表的元数据结构，有没有手段让连接器只捕获配置信息（schema.include.list和table.include.list）里的元数据结构？
+
+A：Debezium会默认捕获整个库的表结构，可以在任务配置中设置schema.history.internal.store.only.captured.tables.ddl=true，即可只捕获配置信息（schema.include.list和table.include.list）里的表结构。
+
+#### 8.7 删除任务重建后，再次启动后没有捕获表的元数据结构，比如在运行日志中没有看到”Capturing structure of table“，这是为什么呢？
+
+A：debezium提供schema.history.internal.kafka.topic=schema-changes.inventory这个配置会生成一个topic保存一份表的元数据，所以删除任务重建后，如果任务名称没有变，并且没有删除schema-changes.inventory主题，就不会重新再捕获元数据结构。
+
+#### 8.8 文档上描述不支持自定义数据类型、XMLTYPE、 JSON数据类型，为什么XMLTYPE、 JSON数据还能正常同步到Kafka的主题上呢？
+
+A：YashanDB Connector对于类型的支持情况来源于YashanDB YStream的支持范围，XMLTYPE、 JSON数据能正常同步，但是数据的正确性上无法保证，依赖于YStream的支持。
+

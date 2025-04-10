@@ -15,7 +15,7 @@ import java.sql.SQLRecoverableException;
 import java.util.Set;
 
 /**
- * Error handle for Oracle.
+ * Error handle for YashanDB.
  *
  * @author Chris Cranford
  */

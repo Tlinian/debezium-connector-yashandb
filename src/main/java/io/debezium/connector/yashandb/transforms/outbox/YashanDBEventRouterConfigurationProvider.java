@@ -15,7 +15,7 @@ import io.debezium.transforms.outbox.EventRouterConfigurationProvider;
 import java.util.Map;
 
 /**
- * An implementation of the {@link EventRouterConfigurationProvider} for the Oracle connector.
+ * An implementation of the {@link EventRouterConfigurationProvider} for the YashanDB connector.
  *
  * @author Chris Cranford
  */
