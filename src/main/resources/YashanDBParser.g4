@@ -5083,6 +5083,7 @@ native_datatype_element
     | BINARY_FLOAT
     | BINARY_DOUBLE
     | BIGINT
+    | BIT
     | NATURALN
     | POSITIVE
     | POSITIVEN
@@ -5099,6 +5100,7 @@ native_datatype_element
     | DECIMAL
     | DOUBLE PRECISION?
     | FLOAT
+    | TINYINT
     | REAL
     | NCHAR
     | LONG RAW?

@@ -383,7 +383,8 @@ DBMS_YSTREAM_ADM.START(server_name  IN VARCHAR(64));
 
 ## 8. 限制
 
-1. 受限于YStream，不支持自定义数据类型、XMLTYPE、 JSON数据类型。
+1. 受限于YStream，不支持自定义数据类型、ST_GEOMETRY、BOX2D、XMLTYPE、 JSON数据类型。
+2. 不支持create table...as select增量DDL。
 
 ## 8. Q&A
 
@@ -426,4 +427,8 @@ A：YashanDB Connector对于类型的支持情况来源于YashanDB YStream的支
 #### 8.9 YashanDB源端做了DDL导致任务解析这个DDL失败，想跳过这个失败的DDL，如何处理呢？
 
 A：Debezium提供了失败的DDL跳过解析的功能，可以跳过修改任务配置schema.history.internal.skip.unparseable.ddl=true来开启该功能。
+
+#### 8.10 YashanDB源端做了“create table...as select”类似的DDL，这个表后续的DML的数据解析失败，如何处理呢？
+
+A：该建表DDL无法解析出该表的元数据，导致后续的DML数据解析失败，经过调研debezium oracle connector也是同样的问题，如果出现该情况，请重新开启新的同步任务。
 

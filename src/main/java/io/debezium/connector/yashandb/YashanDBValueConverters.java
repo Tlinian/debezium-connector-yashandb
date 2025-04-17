@@ -201,7 +201,7 @@ public class YashanDBValueConverters extends JdbcValueConverters {
             case Types.NUMERIC:
                 return getNumericConverter(column, fieldDefn);
             case Types.FLOAT:
-                return data -> convertVariableScale(column, fieldDefn, data);
+                return (data) -> convertDouble(column, fieldDefn, data);
             case YasTypes.TIMESTAMP_TZ:
                 return (data) -> convertTimestampWithZone(column, fieldDefn, data);
             case YasTypes.YM_INTERVAL:

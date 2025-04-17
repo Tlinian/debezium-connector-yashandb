@@ -161,6 +161,7 @@ BINARY_INTEGER:               'BINARY_INTEGER';
 BIND_AWARE:                   'BIND_AWARE';
 BINDING:                      'BINDING';
 BIN_TO_NUM:                   'BIN_TO_NUM';
+BIT:                          'BIT';
 BITAND:                       'BITAND';
 BITMAP_AND:                   'BITMAP_AND';
 BITMAP:                       'BITMAP';

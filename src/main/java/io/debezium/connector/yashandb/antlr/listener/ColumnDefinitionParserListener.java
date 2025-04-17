@@ -222,6 +222,15 @@ public class ColumnDefinitionParserListener extends BaseParserListener {
                 if (precisionPart != null) {
                     setPrecision(precisionPart, columnEditor);
                 }
+            }else if (ctx.native_datatype_element().DOUBLE() != null || ctx.native_datatype_element().BINARY_DOUBLE() != null) {
+                columnEditor
+                        .jdbcType(Types.DOUBLE)
+                        .type("DOUBLE")
+                        .length(256);
+
+                if (precisionPart != null) {
+                    setPrecision(precisionPart, columnEditor);
+                }
             }
             // PRECISION keyword is mandatory
             else if (ctx.native_datatype_element().FLOAT() != null ||
@@ -235,7 +244,7 @@ public class ColumnDefinitionParserListener extends BaseParserListener {
                 if (precisionPart != null) {
                     setPrecision(precisionPart, columnEditor);
                 }
-            } else if (ctx.native_datatype_element().REAL() != null) {
+            } else if (ctx.native_datatype_element().REAL() != null || ctx.native_datatype_element().BINARY_FLOAT() != null) {
                 columnEditor
                         .jdbcType(Types.FLOAT)
                         .type("FLOAT")
@@ -290,6 +299,14 @@ public class ColumnDefinitionParserListener extends BaseParserListener {
                 columnEditor
                         .jdbcType(YasTypes.SQLXML)
                         .type("XMLTYPE");
+            } else if (ctx.native_datatype_element().TINYINT() != null) {
+                columnEditor
+                        .jdbcType(YasTypes.TINYINT)
+                        .type("TINYINT");
+            } else if (ctx.native_datatype_element().BIT() != null) {
+                columnEditor
+                        .jdbcType(YasTypes.BIT)
+                        .type("BIT");
             } else {
                 columnEditor
                         .jdbcType(YasTypes.OTHER)
