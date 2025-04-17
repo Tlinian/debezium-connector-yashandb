@@ -200,7 +200,7 @@ public class YashanDBConnectorTask extends BaseSourceTask<YashanDBPartition, Yas
             else {
                 throw new DebeziumException("YashanDB does not yet have the YStream server " + config.getYstreamServerName()
                         + " or check option 'database.ystream.server.name' if the parameters are filled in correctly." +
-                        " Please create and configure the YStream server, refer to the link 'https://cod-doc.yasdb.com/yashandb/23.3/zh/%E5%BC%80%E5%8F%91%E6%89%8B%E5%86%8C/PL%E5%8F%82%E8%80%83%E6%89%8B%E5%86%8C/%E5%86%85%E7%BD%AE%E9%AB%98%E7%BA%A7%E5%8C%85/DBMS_YSTREAM_ADM.html'.");
+                        " Please create and configure the YStream server, refer to the link 'https://doc.yashandb.com/yashandb/23.3/zh/%E5%BC%80%E5%8F%91%E6%89%8B%E5%86%8C/PL%E5%8F%82%E8%80%83%E6%89%8B%E5%86%8C/%E5%86%85%E7%BD%AE%E9%AB%98%E7%BA%A7%E5%8C%85/DBMS_YSTREAM_ADM.html'.");
             }
         }
         catch (SQLException e) {
