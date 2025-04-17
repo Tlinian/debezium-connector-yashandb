@@ -5498,6 +5498,7 @@ non_reserved_keywords_in_12c
     | EM
     | ENABLE_ALL
     | ENABLE_PARALLEL_DML
+    | END
     | EQUIPART
     | EVAL
     | EVALUATE
