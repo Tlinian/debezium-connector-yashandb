@@ -83,6 +83,17 @@ public class YashanDBDdlParserTest extends TestCase {
     }
 
     @Test
+    public void testTableNameIsEnd() {
+        String sql = "create table TEST_TIME_DB.END(id int,id01 time)";
+        YashanDBDdlParser ddlParser = new YashanDBDdlParser(false, new YashanDBValueConverters(new YashanDBConnectorConfig(Configuration.create().build()),
+                null)
+                , Tables.TableFilter.includeAll());
+        Tables databaseTables = new Tables();
+        ddlParser.parse(sql, databaseTables);
+        System.out.println();
+    }
+
+    @Test
     public void testDdl() {
         String sql = "create table KAFKA_DDL.tab(id int) ORGANIZATION external (type YASDB_LOADER  access parameters (RECORDS DELIMITED BY NEWLINE));";
         YashanDBDdlParser ddlParser = new YashanDBDdlParser(false, new YashanDBValueConverters(new YashanDBConnectorConfig(Configuration.create().build()),
