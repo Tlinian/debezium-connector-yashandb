@@ -58,8 +58,7 @@ public class AlterTableParserListener extends BaseParserListener {
     @Override
     public void enterAlter_table(YashanDBParser.Alter_tableContext ctx) {
         previousTableId = null;
-        String targetSchema = getSchemaName(ctx.tableview_name());
-        TableId tableId = new TableId(catalogName,targetSchema == null? schemaName: targetSchema, getTableName(ctx.tableview_name()));
+        TableId tableId = new TableId(catalogName, schemaName, getTableName(ctx.tableview_name()));
         if (parser.databaseTables().forTable(tableId) == null) {
             LOGGER.debug("Ignoring ALTER TABLE statement for non-captured table {}", tableId);
             return;

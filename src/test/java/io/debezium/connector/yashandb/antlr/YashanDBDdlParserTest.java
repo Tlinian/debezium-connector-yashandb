@@ -12,6 +12,11 @@ import org.assertj.core.api.Assertions;
 import org.awaitility.core.AssertionCondition;
 import org.junit.Test;
 
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 
 public class YashanDBDdlParserTest extends TestCase {
@@ -38,7 +43,7 @@ public class YashanDBDdlParserTest extends TestCase {
                 "TABLESPACE \"USERS\" ENABLE\n" +
                 ");", databaseTables);
         ddlParser.parse("alter table \"HSYS\".\"CUSTOMER_READING_ROUTE\" add column id01 NUMBER;", databaseTables);
-        Table table = databaseTables.forTable(new TableId(null, "HSYS", "CUSTOMER_READING_ROUTE"));
+        Table table = databaseTables.forTable(new TableId(null, null, "CUSTOMER_READING_ROUTE"));
         Column id01 = table.columnWithName("ID01");
         assert Objects.equals(id01.typeName(), "NUMBER");
 
@@ -66,8 +71,8 @@ public class YashanDBDdlParserTest extends TestCase {
         ddlParser.parse("ALTER TABLE HSYS.CUSTOMER_READING_ROUTE1111 MODIFY READING_ROUTE_CODE NVARCHAR(10);", databaseTables);
         ddlParser.parse("ALTER TABLE HSYS.CUSTOMER_READING_ROUTE1111 MODIFY REMARK NVARCHAR(512);", databaseTables);
         ddlParser.parse("ALTER TABLE HSYS.CUSTOMER_READING_ROUTE1111 MODIFY READING_ROUTE_NAME NVARCHAR(100);", databaseTables);
-        assert databaseTables.forTable(new TableId(null, "HSYS", "CUSTOMER_READING_ROUTE1111")) != null;
-        assert Objects.equals(databaseTables.forTable(new TableId(null, "HSYS", "CUSTOMER_READING_ROUTE1111"))
+        assert databaseTables.forTable(new TableId(null, null, "CUSTOMER_READING_ROUTE1111")) != null;
+        assert Objects.equals(databaseTables.forTable(new TableId(null, null, "CUSTOMER_READING_ROUTE1111"))
                 .columnWithName("READING_ROUTE_CODE").typeName(), "NVARCHAR2");
     }
 
@@ -94,8 +99,143 @@ public class YashanDBDdlParserTest extends TestCase {
     }
 
     @Test
+    public void testDropMutipleColumn() {
+        String sql = "ALTER TABLE DDL_CREATE.product_pri DROP COLUMN(product_no,product_name);";
+        YashanDBDdlParser ddlParser = new YashanDBDdlParser(false, new YashanDBValueConverters(new YashanDBConnectorConfig(Configuration.create().build()),
+                null)
+                , Tables.TableFilter.includeAll());
+        Tables databaseTables = new Tables();
+        ddlParser.parse(sql, databaseTables);
+        System.out.println();
+    }
+
+    @Test
+    public void testHashListTable() {
+        String sql = "CREATE TABLE DDL_CREATE.hash_list_table(c1 INT, c2 VARCHAR(10))\n" +
+                "PARTITION BY HASH(c1)\n" +
+                "SUBPARTITION BY LIST(c2)\n" +
+                "(\n" +
+                "PARTITION p1(SUBPARTITION sp1 VALUES('a')), \n" +
+                "PARTITION p2 (SUBPARTITION sp3 VALUES('d'), SUBPARTITION sp4 VALUES(DEFAULT))\n" +
+                ");"
+                ;
+        YashanDBDdlParser ddlParser = new YashanDBDdlParser(false, new YashanDBValueConverters(new YashanDBConnectorConfig(Configuration.create().build()),
+                null)
+                , Tables.TableFilter.includeAll());
+        Tables databaseTables = new Tables();
+        ddlParser.parse(sql, databaseTables);
+        System.out.println();
+    }
+
+    @Test
+    public void testDropPrimaryKey() {
+        String sql = "ALTER TABLE DDL_CREATE.department DROP PRIMARY KEY;"
+                ;
+        YashanDBDdlParser ddlParser = new YashanDBDdlParser(false, new YashanDBValueConverters(new YashanDBConnectorConfig(Configuration.create().build()),
+                null)
+                , Tables.TableFilter.includeAll());
+        Tables databaseTables = new Tables();
+        ddlParser.parse(sql, databaseTables);
+        System.out.println();
+    }
+
+    @Test
+    public void testPartitionByHas() {
+        String sql = "CREATE TABLE DDL_CREATE.sales_info\n" +
+                "(year CHAR(4) NOT NULL,\n" +
+                " month CHAR(2) NOT NULL,\n" +
+                " branch CHAR(4) CONSTRAINT c_sales_info_1 REFERENCES DDL_CREATE.branches(branch_no) ON DELETE SET NULL,\n" +
+                " quantity NUMBER DEFAULT 0 NOT NULL,\n" +
+                " amount NUMBER(10,2) DEFAULT 0 NOT NULL)\n" +
+                "PARTITION BY HASH(branch)\n" +
+                "SUBPARTITION BY LIST(year)\n" +
+                "SUBPARTITION template (SUBPARTITION sp_sales_info_1 VALUES ('2001','2002','2010'),\n" +
+                " SUBPARTITION sp_sales_info_2 VALUES ('2021','2020','2019'),\n" +
+                " SUBPARTITION sp_sales_info_3 VALUES (DEFAULT))\n" +
+                "(PARTITION p_sales_info_1,PARTITION p_sales_info_2,PARTITION p_sales_info_3);"
+                ;
+        YashanDBDdlParser ddlParser = new YashanDBDdlParser(false, new YashanDBValueConverters(new YashanDBConnectorConfig(Configuration.create().build()),
+                null)
+                , Tables.TableFilter.includeAll());
+        Tables databaseTables = new Tables();
+        ddlParser.parse(sql, databaseTables);
+        System.out.println();
+    }
+
+    @Test
+    public void testAlterPartition() {
+        String sql = "ALTER TABLE DDL_CREATE.composite_table MODIFY PARTITION p1 ADD SUBPARTITION p1_subp1";
+        YashanDBDdlParser ddlParser = new YashanDBDdlParser(false, new YashanDBValueConverters(new YashanDBConnectorConfig(Configuration.create().build()),
+                null)
+                , Tables.TableFilter.includeAll());
+        Tables databaseTables = new Tables();
+        ddlParser.parse(sql, databaseTables);
+        System.out.println(databaseTables);
+    }
+
+    @Test
     public void testDdl() {
         String sql = "create table KAFKA_DDL.tab(id int) ORGANIZATION external (type YASDB_LOADER  access parameters (RECORDS DELIMITED BY NEWLINE));";
+        YashanDBDdlParser ddlParser = new YashanDBDdlParser(false, new YashanDBValueConverters(new YashanDBConnectorConfig(Configuration.create().build()),
+                null)
+                , Tables.TableFilter.includeAll());
+        Tables databaseTables = new Tables();
+        ddlParser.parse(sql, databaseTables);
+        System.out.println(databaseTables);
+    }
+
+    @Test
+    public void testDdlPartition() {
+        String sql = "CREATE TABLE orders_multikey(\n" +
+                "order_no CHAR(14) NOT NULL,\n" +
+                "order_desc VARCHAR2(100),\n" +
+                "area CHAR(2),\n" +
+                "branch CHAR(4),\n" +
+                "order_date DATE DEFAULT SYSDATE NOT NULL,\n" +
+                "salesperson CHAR(10),\n" +
+                "id NUMBER)\n" +
+                "PARTITION BY RANGE(id,order_date)\n" +
+                "(PARTITION p_orders_max_1 VALUES LESS THAN (800,'2010-01-01'),\n" +
+                " PARTITION p_orders_max_2 VALUES LESS THAN (1000,'2010-05-01'),\n" +
+                " PARTITION p_orders_max_3 VALUES LESS THAN (1500,'2010-10-01')\n" +
+                ");";
+        YashanDBDdlParser ddlParser = new YashanDBDdlParser(false, new YashanDBValueConverters(new YashanDBConnectorConfig(Configuration.create().build()),
+                null)
+                , Tables.TableFilter.includeAll());
+        Tables databaseTables = new Tables();
+        ddlParser.parse(sql, databaseTables);
+        System.out.println(databaseTables);
+    }
+
+    @Test
+    public void testDdlSYSDate() {
+        String sql = "CREATE TABLE xx2(id time DEFAULT sysdate);";
+        YashanDBDdlParser ddlParser = new YashanDBDdlParser(false, new YashanDBValueConverters(new YashanDBConnectorConfig(Configuration.create().build()),
+                null)
+                , Tables.TableFilter.includeAll());
+        Tables databaseTables = new Tables();
+        ddlParser.parse(sql, databaseTables);
+        System.out.println(databaseTables);
+    }
+
+    @Test
+    public void testDdl3() {
+        String sql = "create table test_default_beyond(\n" +
+                "  col1 BIGINT default 9223372036854775807,\n" +
+                "  col2 varchar(10) default 'abchd~!@#$',\n" +
+                "  col3 char(10) default 'abchd~!@#$',\n" +
+                "  col4 float default 3.402823E38,\n" +
+                "  col5 double default 1.79769313486231E308,\n" +
+                "  col6 number(38,0) default 99999999999999999999999999999999999999,\n" +
+                "  col7 timestamp(6)  default '9999-12-31 23:59:59.999999',\n" +
+                "  col8 timestamp not null default '1-1-1 00:00:00.000000',\n" +
+                "  col9 timestamp NOT NULL default current_timestamp,\n" +
+                "  col10 time default '23:59:59.999999',\n" +
+                "  col11 time default '00:00:00.000000',\n" +
+                "  col12 timestamp(9) default '9999-12-31 23:59:59.999999',\n" +
+                "  col13 date default '9999-12-31',\n" +
+                "  col14 boolean default FALSE\n" +
+                ");";
         YashanDBDdlParser ddlParser = new YashanDBDdlParser(false, new YashanDBValueConverters(new YashanDBConnectorConfig(Configuration.create().build()),
                 null)
                 , Tables.TableFilter.includeAll());
@@ -198,7 +338,7 @@ public class YashanDBDdlParserTest extends TestCase {
         System.out.println(databaseTables);
     }
 
-    public void testLscProperties(){
+    public void testLscProperties() {
         YashanDBDdlParser ddlParser = new YashanDBDdlParser(false, new YashanDBValueConverters(new YashanDBConnectorConfig(Configuration.create().build()),
                 null)
                 , Tables.TableFilter.includeAll());
@@ -219,7 +359,7 @@ public class YashanDBDdlParserTest extends TestCase {
         System.out.println(databaseTables);
     }
 
-    public void testTableType(){
+    public void testTableType() {
         YashanDBDdlParser ddlParser = new YashanDBDdlParser(false, new YashanDBValueConverters(new YashanDBConnectorConfig(Configuration.create().build()),
                 null)
                 , Tables.TableFilter.includeAll());
@@ -240,7 +380,7 @@ public class YashanDBDdlParserTest extends TestCase {
         System.out.println(databaseTables);
     }
 
-    public void testTempTableAttrClause(){
+    public void testTempTableAttrClause() {
         YashanDBDdlParser ddlParser = new YashanDBDdlParser(false, new YashanDBValueConverters(new YashanDBConnectorConfig(Configuration.create().build()),
                 null)
                 , Tables.TableFilter.includeAll());
@@ -257,7 +397,7 @@ public class YashanDBDdlParserTest extends TestCase {
         System.out.println(databaseTables);
     }
 
-    public void testOrganizationClause(){
+    public void testOrganizationClause() {
         YashanDBDdlParser ddlParser = new YashanDBDdlParser(false, new YashanDBValueConverters(new YashanDBConnectorConfig(Configuration.create().build()),
                 null)
                 , Tables.TableFilter.includeAll());
@@ -272,7 +412,7 @@ public class YashanDBDdlParserTest extends TestCase {
         System.out.println(databaseTables);
     }
 
-    public void testExternalTableClause(){
+    public void testExternalTableClause() {
         YashanDBDdlParser ddlParser = new YashanDBDdlParser(false, new YashanDBValueConverters(new YashanDBConnectorConfig(Configuration.create().build()),
                 null)
                 , Tables.TableFilter.includeAll());
@@ -285,7 +425,7 @@ public class YashanDBDdlParserTest extends TestCase {
         System.out.println(databaseTables);
     }
 
-    public void testPhysicalAttributeClause(){
+    public void testPhysicalAttributeClause() {
         YashanDBDdlParser ddlParser = new YashanDBDdlParser(false, new YashanDBValueConverters(new YashanDBConnectorConfig(Configuration.create().build()),
                 null)
                 , Tables.TableFilter.includeAll());
@@ -319,5 +459,55 @@ public class YashanDBDdlParserTest extends TestCase {
                 "STORAGE(INITIAL 63K MAXSIZE 10M NEXT 12k MINEXTENTS 1 MAXEXTENTS 10 PCTINCREASE 0 FREELISTS 10);";
         ddlParser.parse(sql8, databaseTables);
         System.out.println(databaseTables);
+    }
+
+    public void testSqlFile() throws IOException {
+        YashanDBDdlParser ddlParser = new YashanDBDdlParser(false, new YashanDBValueConverters(new YashanDBConnectorConfig(Configuration.create().build()),
+                null)
+                , Tables.TableFilter.includeAll());
+        Tables databaseTables = new Tables();
+        // table_properties external_table_clause
+        List<String> strings = parseSqlFile("src/test/resources/rename.sql");
+        strings.forEach(s -> {
+            ddlParser.parse(s, databaseTables);
+        });
+        System.out.println(databaseTables);
+    }
+
+    public void testSqlFile2() throws IOException {
+        YashanDBDdlParser ddlParser = new YashanDBDdlParser(false, new YashanDBValueConverters(new YashanDBConnectorConfig(Configuration.create().build()),
+                null)
+                , Tables.TableFilter.includeAll());
+        Tables databaseTables = new Tables();
+        // table_properties external_table_clause
+        List<String> strings = parseSqlFile("src/test/resources/约束.sql");
+        strings.forEach(s -> {
+            ddlParser.parse(s, databaseTables);
+        });
+        System.out.println(databaseTables);
+    }
+
+
+    public List<String> parseSqlFile(String filePath) throws IOException {
+        List<String> sqlList = new ArrayList<>();
+        StringBuilder buffer = new StringBuilder();
+
+        try (BufferedReader reader = new BufferedReader(new FileReader(filePath))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                line = line.trim();
+                // 跳过空行和单行注释
+                if (line.isEmpty() || line.startsWith("--")) continue;
+                buffer.append(line).append(" ");
+
+                // 分号作为语句结束符
+                if (line.endsWith(";")) {
+                    String sql = buffer.toString().replaceAll(";\\s*$", "");
+                    sqlList.add(sql);
+                    buffer.setLength(0);
+                }
+            }
+        }
+        return sqlList;
     }
 }

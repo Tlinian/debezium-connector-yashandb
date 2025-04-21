@@ -24,16 +24,6 @@ class BaseParserListener extends YashanDBParserBaseListener {
         return getTableOrColumnName(tableName);
     }
 
-    String getSchemaName(final YashanDBParser.Tableview_nameContext tableview_name) {
-        final String schemaName;
-        if (tableview_name.identifier().id_expression() != null) {
-            schemaName = tableview_name.identifier().id_expression().getText();
-        }else {
-            return null;
-        }
-        return getTableOrColumnName(schemaName);
-    }
-
     String getTableName(final YashanDBParser.Column_nameContext ctx) {
         final String tableName;
         if (ctx.id_expression() != null && ctx.id_expression().size() > 1) {
