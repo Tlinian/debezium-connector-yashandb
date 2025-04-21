@@ -425,6 +425,98 @@ public class YashanDBDdlParserTest extends TestCase {
         System.out.println(databaseTables);
     }
 
+    public void testExternalTableClause2() {
+        YashanDBDdlParser ddlParser = new YashanDBDdlParser(false, new YashanDBValueConverters(new YashanDBConnectorConfig(Configuration.create().build()),
+                null)
+                , Tables.TableFilter.includeAll());
+        Tables databaseTables = new Tables();
+        // table_properties external_table_clause
+        String sql = "CREATE TABLE DDL_CREATE.orders_info1 (order_no CHAR(14) NOT NULL,\n" +
+                "order_desc VARCHAR2(100),\n" +
+                "area CHAR(2),\n" +
+                "branch CHAR(4),\n" +
+                "order_date DATE DEFAULT SYSDATE NOT NULL,\n" +
+                "salesperson CHAR(10),\n" +
+                "id NUMBER)\n" +
+                "PARTITION BY RANGE (order_date)\n" +
+                "INTERVAL (INTERVAL '3' month) STORE IN (mu_data_001)\n" +
+                "(PARTITION p_firstquarter VALUES LESS THAN (DATE '2000-01-01'));";
+        ddlParser.parse(sql, databaseTables);
+        System.out.println(databaseTables);
+    }
+
+    public void testExternalTableClause3() {
+        YashanDBDdlParser ddlParser = new YashanDBDdlParser(false, new YashanDBValueConverters(new YashanDBConnectorConfig(Configuration.create().build()),
+                null)
+                , Tables.TableFilter.includeAll());
+        Tables databaseTables = new Tables();
+        // table_properties external_table_clause
+        String sql = "CREATE TABLE sales_info\n" +
+                "(year CHAR(4) NOT NULL,\n" +
+                "month CHAR(2) NOT NULL,\n" +
+                "branch CHAR(4) NOT NULL,\n" +
+                "product CHAR(10) NOT NULL,\n" +
+                "quantity NUMBER DEFAULT 0 NOT NULL,\n" +
+                "amount NUMBER(10,2) DEFAULT 0 NOT NULL,\n" +
+                "salsperson CHAR(10))\n" +
+                "PARTITION BY LIST(year,month)\n" +
+                "(PARTITION p_sales_info1_1 VALUES (('2018','01'),('2018','02')),\n" +
+                "PARTITION p_sales_info1_2 VALUES ('2020','01'),\n" +
+                "PARTITION p_sales_info1_3 VALUES (DEFAULT));";
+        ddlParser.parse(sql, databaseTables);
+        String sql1 = " CREATE TABLE DDL_CREATE.orders_info1 (order_no CHAR(14) NOT NULL,\n" +
+                "order_desc VARCHAR2(100),\n" +
+                "area CHAR(2),\n" +
+                "branch CHAR(4),\n" +
+                "order_date DATE DEFAULT SYSDATE NOT NULL,\n" +
+                "salesperson CHAR(10),\n" +
+                "id NUMBER)\n" +
+                "PARTITION BY RANGE (order_date)\n" +
+                "INTERVAL (INTERVAL '3' month) STORE IN (mu_data_001)\n" +
+                "(PARTITION p_firstquarter VALUES LESS THAN (DATE '2000-01-01'));";
+        ddlParser.parse(sql1, databaseTables);
+        String sql2 = " CREATE TABLE DDL_CREATE.hh_composite(a INT, b VARCHAR(10))\n" +
+                "PARTITION BY HASH(a)\n" +
+                "SUBPARTITION BY HASH(b)\n" +
+                "subpartitions 8\n" +
+                "(PARTITION p1, PARTITION p2);";
+        ddlParser.parse(sql2, databaseTables);
+        String sql3 = "CREATE TABLE DDL_CREATE.hr_composite(a INT, b INT, c INT,d INT)\n" +
+                "PARTITION BY HASH(a)\n" +
+                "SUBPARTITION BY RANGE(b,c,d)\n" +
+                "(\n" +
+                "PARTITION p1 (SUBPARTITION sp1 VALUES LESS than(10,20,30), SUBPARTITION sp2 VALUES LESS than(20,20,30)),\n" +
+                "PARTITION p2\n" +
+                ");";
+        ddlParser.parse(sql3, databaseTables);
+        String sql4 = "CREATE TABLE DDL_CREATE.hr_composite_template(a INT, b VARCHAR(10))\n" +
+                "PARTITION BY HASH(a)\n" +
+                "SUBPARTITION BY RANGE(b)\n" +
+                "SUBPARTITION template (SUBPARTITION sub1 VALUES LESS than ('a') , SUBPARTITION sub2 VALUES LESS than (MAXVALUE))\n" +
+                "(PARTITION p1,PARTITION p2);";
+        ddlParser.parse(sql4, databaseTables);
+        String sql5 = "CREATE TABLE DDL_CREATE.list_composite(a INT, b VARCHAR(10)) \n" +
+                "PARTITION BY HASH(a) SUBPARTITION BY LIST(b)\n" +
+                "SUBPARTITION template(SUBPARTITION sp1 VALUES('a'), SUBPARTITION sp2 VALUES(DEFAULT))\n" +
+                "partitions 8;";
+        ddlParser.parse(sql5, databaseTables);
+        String sql6 = "CREATE TABLE DDL_CREATE.hash_composite(a INT, b VARCHAR(10))\n" +
+                "PARTITION BY HASH(a)\n" +
+                "SUBPARTITION BY HASH(b)\n" +
+                "SUBPARTITION template (SUBPARTITION sp1 TABLESPACE users, SUBPARTITION sp2 TABLESPACE users)\n" +
+                "(PARTITION p1, PARTITION p2);";
+        ddlParser.parse(sql6, databaseTables);
+        String sql7 = "CREATE TABLE DDL_CREATE.hl_partcomposite1(c1 INT,c2 INT)\n" +
+                "PARTITION BY HASH(c1)\n" +
+                "SUBPARTITION BY LIST(c2)\n" +
+                "SUBPARTITION template(SUBPARTITION sp9 VALUES(2))\n" +
+                "(PARTITION p1 (SUBPARTITION sp11 VALUES(1)),\n" +
+                "PARTITION p2,\n" +
+                "PARTITION p3);";
+        ddlParser.parse(sql7, databaseTables);
+        System.out.println(databaseTables);
+    }
+
     public void testPhysicalAttributeClause() {
         YashanDBDdlParser ddlParser = new YashanDBDdlParser(false, new YashanDBValueConverters(new YashanDBConnectorConfig(Configuration.create().build()),
                 null)

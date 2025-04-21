@@ -113,7 +113,7 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
                                                RelationalSnapshotContext<YashanDBPartition, YashanDBOffsetContext> snapshotContext)
             throws SQLException, InterruptedException {
         if (connectorConfig.getSnapshotLockingMode().usesLocking()) {
-            LOGGER.info(" yashandb not support lock table");
+//            LOGGER.info(" yashandb not support lock table");
             // ((YashanDBOffsetContext) snapshotContext).preSchemaSnapshotSavepoint = jdbcConnection.connection().setSavepoint("dbz_schema_snapshot");
             //
             // try (Statement statement = jdbcConnection.connection().createStatement()) {
