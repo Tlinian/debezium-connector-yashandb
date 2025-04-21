@@ -1980,19 +1980,19 @@ hash_partition_quantity
 composite_range_partitions
     : PARTITION BY RANGE '(' column_name (',' column_name)* ')'
        (INTERVAL '(' expression ')' (STORE IN '(' tablespace (',' tablespace)* ')' )? )?
-       (subpartition_by_range | subpartition_by_list | subpartition_by_hash)
+       (subpartition_by_range | subpartition_by_list | subpartition_by_hash)?
          '(' range_partition_desc (',' range_partition_desc)* ')'
     ;
 
 composite_list_partitions
     : PARTITION BY LIST '(' column_name (',' column_name)* ')'
-       (subpartition_by_range | subpartition_by_list | subpartition_by_hash)
+       (subpartition_by_range | subpartition_by_list | subpartition_by_hash)?
         '(' list_partition_desc (',' list_partition_desc)* ')'
     ;
 
 composite_hash_partitions
     : PARTITION BY HASH '(' column_name (',' column_name)* ')'
-       (subpartition_by_range | subpartition_by_list | subpartition_by_hash)
+       (subpartition_by_range | subpartition_by_list | subpartition_by_hash)?
          (individual_hash_partitions | hash_partitions_by_quantity | '(' range_partition_desc (',' range_partition_desc)* ')')
     ;
 
@@ -2092,7 +2092,9 @@ range_values_clause
     ;
 
 list_values_clause
-    : VALUES '(' (literal (',' literal)* | TIMESTAMP literal (',' TIMESTAMP literal)* | DATE literal (',' DATE literal)* | DEFAULT) ')'
+    : VALUES ('(' ((literal (',' literal)* | TIMESTAMP literal (',' TIMESTAMP literal)* | DATE literal (',' DATE literal)* | DEFAULT)
+                  | ('(' (literal (',' literal)* | TIMESTAMP literal (',' TIMESTAMP literal)* | DATE literal (',' DATE literal)* | DEFAULT) ')'
+                  (',' '(' (literal (',' literal)* | TIMESTAMP literal (',' TIMESTAMP literal)* | DATE literal (',' DATE literal)* | DEFAULT) ')')* )) ')')
     ;
 
 table_partition_description
