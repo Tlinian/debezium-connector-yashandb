@@ -2088,11 +2088,11 @@ hash_subparts_by_quantity
 range_values_clause
     : VALUES LESS THAN
         ('(' literal (',' literal)* ')' |
-            '(' TIMESTAMP literal (',' TIMESTAMP literal)* ')')
+            '(' TIMESTAMP literal (',' TIMESTAMP literal)* ')' | '(' DATE literal (',' DATE literal)* ')')
     ;
 
 list_values_clause
-    : VALUES '(' (literal (',' literal)* | TIMESTAMP literal (',' TIMESTAMP literal)* | DEFAULT) ')'
+    : VALUES '(' (literal (',' literal)* | TIMESTAMP literal (',' TIMESTAMP literal)* | DATE literal (',' DATE literal)* | DEFAULT) ')'
     ;
 
 table_partition_description
