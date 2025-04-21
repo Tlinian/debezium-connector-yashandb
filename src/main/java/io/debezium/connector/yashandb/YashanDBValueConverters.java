@@ -30,6 +30,7 @@ import java.sql.Blob;
 import java.sql.Clob;
 import java.sql.SQLException;
 import java.sql.Types;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -39,9 +40,9 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 import java.time.temporal.ChronoField;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
 import static io.debezium.util.NumberConversions.BYTE_FALSE;
 
 public class YashanDBValueConverters extends JdbcValueConverters {
@@ -213,6 +214,18 @@ public class YashanDBValueConverters extends JdbcValueConverters {
         }
 
         return super.converter(column, fieldDefn);
+    }
+
+
+    @Override
+    protected Object convertReal(Column column, Field fieldDefn, Object data) {
+        return convertValue(column, fieldDefn, data, 0.0f, (r) -> {
+            if (data instanceof String) {
+                r.deliver(Float.valueOf((String) data));
+            }else {
+                super.convertReal(column,fieldDefn,data);
+            }
+        });
     }
 
     protected Object convertJson(Column column, Field fieldDefn, Object data) {
