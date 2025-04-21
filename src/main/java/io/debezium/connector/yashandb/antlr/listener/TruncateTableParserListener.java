@@ -26,8 +26,7 @@ public class TruncateTableParserListener extends BaseParserListener {
 
     @Override
     public void enterTruncate_table(final YashanDBParser.Truncate_tableContext ctx) {
-        String targetSchema = getSchemaName(ctx.tableview_name());
-        TableId tableId = new TableId(catalogName,targetSchema== null? schemaName: targetSchema, getTableName(ctx.tableview_name()));
+        TableId tableId = new TableId(catalogName, schemaName, getTableName(ctx.tableview_name()));
         parser.signalTruncateTable(tableId, ctx);
         super.enterTruncate_table(ctx);
     }

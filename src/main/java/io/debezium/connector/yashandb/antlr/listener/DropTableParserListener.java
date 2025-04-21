@@ -26,8 +26,7 @@ public class DropTableParserListener extends BaseParserListener {
 
     @Override
     public void enterDrop_table(final YashanDBParser.Drop_tableContext ctx) {
-        String targetSchema = getSchemaName(ctx.tableview_name().get(0));
-        TableId tableId = new TableId(catalogName, targetSchema == null ? schemaName: targetSchema, getTableName(ctx.tableview_name().get(0)));
+        TableId tableId = new TableId(catalogName, schemaName, getTableName(ctx.tableview_name().get(0)));
         parser.databaseTables().removeTable(tableId);
         parser.signalDropTable(tableId, ctx);
         super.enterDrop_table(ctx);

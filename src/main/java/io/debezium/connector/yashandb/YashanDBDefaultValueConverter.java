@@ -11,6 +11,7 @@ import io.debezium.annotation.ThreadSafe;
 import io.debezium.relational.Column;
 import io.debezium.relational.DefaultValueConverter;
 import io.debezium.relational.ValueConverter;
+import io.debezium.util.Collect;
 import io.debezium.util.Strings;
 import org.apache.kafka.connect.data.Field;
 import org.apache.kafka.connect.data.Schema;
@@ -21,12 +22,12 @@ import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.sql.Time;
+import java.sql.Types;
 import java.time.Instant;
-import java.util.Collections;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * @author Chris Cranford
@@ -63,8 +64,7 @@ public class YashanDBDefaultValueConverter implements DefaultValueConverter {
                 return Optional.empty();
             }
             return Optional.ofNullable(convertedDefaultValue);
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             LOGGER.warn("Cannot parse column default value '{}' to type '{}'.  Expression evaluation is not supported.", defaultValue, dataType);
             LOGGER.debug("Parsing failed due to error", e);
             return Optional.empty();
@@ -116,6 +116,7 @@ public class YashanDBDefaultValueConverter implements DefaultValueConverter {
         result.put(YasTypes.BIGINT, nullableDefaultValueMapper());
         result.put(YasTypes.SMALLINT, nullableDefaultValueMapper());
         result.put(YasTypes.TINYINT, nullableDefaultValueMapper());
+        result.put(YasTypes.BOOLEAN, nullableDefaultValueMapper());
         result.put(YasTypes.REAL, nullableDefaultValueMapper());
         result.put(YasTypes.DOUBLE, nullableDefaultValueMapper());
 
@@ -181,12 +182,16 @@ public class YashanDBDefaultValueConverter implements DefaultValueConverter {
                 if (column.isOptional()) {
                     // If the column is optional, the default value is ignored
                     return null;
-                }
-                else if (column.jdbcType() == YasTypes.TIMESTAMP_TZ) {
+                } else if (column.jdbcType() == YasTypes.TIMESTAMP_TZ) {
                     // If the column is a TIMESTAMP WITH [LOCAL] TIME ZONE, the non-null default is based on EPOCH
                     return Date.from(Instant.EPOCH);
-                }
-                else {
+                } else if (column.jdbcType() == YasTypes.DATE) {
+                    // If the column is a TIMESTAMP WITH [LOCAL] TIME ZONE, the non-null default is based on EPOCH
+                    return Date.from(Instant.EPOCH);
+                } else if (column.jdbcType() == YasTypes.TIME) {
+                    // If the column is a TIMESTAMP WITH [LOCAL] TIME ZONE, the non-null default is based on EPOCH
+                    return Time.from(Instant.EPOCH);
+                } else {
                     // For all other temporal types, return "0".
                     // The return is a string-value as the OracleValueConverters know how to explicitly infer
                     // whether to emit the final converted value as either a string or numeric value based on

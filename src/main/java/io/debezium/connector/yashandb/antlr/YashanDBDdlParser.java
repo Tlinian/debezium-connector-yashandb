@@ -101,6 +101,7 @@ public class YashanDBDdlParser extends AntlrDdlParser<YashanDBLexer, YashanDBPar
                         new DataTypeEntry(Types.INTEGER, YashanDBParser.INT),
                         new DataTypeEntry(Types.INTEGER, YashanDBParser.INTEGER),
                         new DataTypeEntry(Types.SMALLINT, YashanDBParser.SMALLINT),
+                        new DataTypeEntry(Types.TINYINT, YashanDBParser.TINYINT),
                         new DataTypeEntry(Types.NUMERIC, YashanDBParser.NUMERIC),
                         new DataTypeEntry(Types.DECIMAL, YashanDBParser.DECIMAL),
                         new DataTypeEntry(Types.NUMERIC, YashanDBParser.NUMBER),

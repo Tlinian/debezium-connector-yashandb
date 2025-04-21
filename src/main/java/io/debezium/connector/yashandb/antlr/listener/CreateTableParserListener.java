@@ -45,8 +45,7 @@ public class CreateTableParserListener extends BaseParserListener {
         if (ctx.relational_table() == null) {
             throw new ParsingException(null, "Only relational tables are supported");
         }
-        String targetSchemaName = getSchemaName(ctx.tableview_name());
-        TableId tableId = new TableId(catalogName, targetSchemaName == null ? schemaName : targetSchemaName, getTableName(ctx.tableview_name()));
+        TableId tableId = new TableId(catalogName, schemaName, getTableName(ctx.tableview_name()));
         if (parser.getTableFilter().isIncluded(tableId)) {
             if (parser.databaseTables().forTable(tableId) == null) {
                 tableEditor = parser.databaseTables().editOrCreateTable(tableId);

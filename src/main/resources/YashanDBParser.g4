@@ -1985,15 +1985,15 @@ composite_range_partitions
     ;
 
 composite_list_partitions
-    : PARTITION BY LIST '(' column_name ')'
+    : PARTITION BY LIST '(' column_name (',' column_name)* ')'
        (subpartition_by_range | subpartition_by_list | subpartition_by_hash)
         '(' list_partition_desc (',' list_partition_desc)* ')'
     ;
 
 composite_hash_partitions
-    : PARTITION BY HASH '(' (',' column_name)+ ')'
+    : PARTITION BY HASH '(' column_name (',' column_name)* ')'
        (subpartition_by_range | subpartition_by_list | subpartition_by_hash)
-         (individual_hash_partitions | hash_partitions_by_quantity)
+         (individual_hash_partitions | hash_partitions_by_quantity | '(' range_partition_desc (',' range_partition_desc)* ')')
     ;
 
 reference_partitioning
@@ -2055,7 +2055,7 @@ subpartition_by_range
     ;
 
 subpartition_by_list
-    : SUBPARTITION BY LIST '(' column_name ')' subpartition_template?
+    : SUBPARTITION BY LIST '(' column_name (',' column_name)* ')' subpartition_template?
     ;
 
 subpartition_by_hash
@@ -2070,7 +2070,7 @@ subpartition_name
     ;
 
 range_subpartition_desc
-    : SUBPARTITION subpartition_name? range_values_clause partitioning_storage_clause?
+    : SUBPARTITION subpartition_name? range_values_clause? partitioning_storage_clause?
     ;
 
 list_subpartition_desc
@@ -3253,8 +3253,8 @@ add_modify_drop_column_clauses
     ;
 
 drop_column_clause
-    : SET UNUSED (COLUMN column_name| ('(' column_name (',' column_name)* ')' )) (CASCADE CONSTRAINTS | INVALIDATE)*
-    | DROP ((COLUMN)? column_name | '(' column_name (',' column_name)* ')' ) (CASCADE CONSTRAINTS | INVALIDATE)* (CHECKPOINT UNSIGNED_INTEGER)?
+    : SET UNUSED ((COLUMN)? column_name|(COLUMN)? ('(' column_name (',' column_name)* ')' )) (CASCADE CONSTRAINTS | INVALIDATE)*
+    | DROP ((COLUMN)? column_name |(COLUMN)? '(' column_name (',' column_name)* ')' ) (CASCADE CONSTRAINTS | INVALIDATE)* (CHECKPOINT UNSIGNED_INTEGER)?
     | DROP (UNUSED COLUMNS | COLUMNS CONTINUE) (CHECKPOINT UNSIGNED_INTEGER)
     ;
 
@@ -3281,8 +3281,8 @@ modify_col_substitutable
 
 add_column_clause
     : ADD (COLUMN)? (column_definition | virtual_column_definition) (lob_clauses)?
-    | ADD ('(' (column_definition | virtual_column_definition) (',' (column_definition
-              | virtual_column_definition)
+    | ADD (COLUMN)? ('(' (column_definition | virtual_column_definition) (',' (column_definition
+              | virtual_column_definition | out_of_line_constraint)
               )*
           ')'
           | ( column_definition | virtual_column_definition ))
@@ -3416,6 +3416,7 @@ column_definition
     : column_name (datatype | type_name)?
          (COLLATE collation_name)?
          SORT?
+         (NULL_ | NOT NULL_)?
          (VISIBLE | INVISIBLE)?
          (DEFAULT (ON NULL_)? column_default_value | identity_clause)?
          (ENCRYPT (USING  CHAR_STRING)? (IDENTIFIED BY regular_id)? CHAR_STRING? (NO? SALT)? )?  (inline_constraint* | inline_ref_constraint)
