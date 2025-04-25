@@ -197,7 +197,7 @@ DBMS_YSTREAM_ADM.START(server_name  IN VARCHAR(64));
 | schema.include.list             | No default                                     | 一个可选的逗号分隔的正则表达式列表，与您想要捕获更改的模式名称相匹配。任何未包含在schema.include.list中的模式名称都将被排除在捕获其更改之外。默认情况下，所有非系统模式的更改都会被捕获。为了匹配模式的名称，Debezium应用您指定为锚定正则表达式的正则表达式。也就是说，指定的表达式与模式的整个名称字符串相匹配；它与架构名称中可能存在的子字符串不匹配。 如果在配置中包含此属性，请不要同时设置schema.exclude.list属性。 |
 | schema.exclude.list             | No default                                     | 一个可选的逗号分隔的正则表达式列表，与您不想捕获更改的模式名称相匹配。任何名称未包含在schema.exclude.list中的模式都会捕获其更改，但系统模式除外。为了匹配模式的名称，Debezium应用您指定为锚定正则表达式的正则表达式。也就是说，指定的表达式与模式的整个名称字符串相匹配；它与架构名称中可能存在的子字符串不匹配。 如果在配置中包含此属性，请不要设置`schema.include.list`属性。 |
 | table.include.list              | No default                                     | 一个可选的逗号分隔的正则表达式列表，与要捕获的表的完全限定表标识符相匹配。设置此属性后，连接器仅捕获指定表中的更改。每个表标识符使用以下格式：<schema_name>.<table_name>默认情况下，连接器监视每个捕获的数据库中的每个非系统表。 为了匹配表的名称，Debezium应用您指定为锚定正则表达式的正则表达式。也就是说，指定的表达式与表的整个名称字符串相匹配；它与表名中可能存在的子字符串不匹配。 如果在配置中包含此属性，请不要同时设置table.exclude.list属性。 |
-| table.xclude.list               | No default                                     | 一个可选的逗号分隔的正则表达式列表，用于匹配要从监视中排除的表的完全限定表标识符。连接器从排除列表中未指定的任何表中捕获更改事件。使用以下格式指定每个表的标识符：<schema_name>.<table_name>为了匹配表的名称，Debezium应用您指定为锚定正则表达式的正则表达式。也就是说，指定的表达式与表的整个名称字符串相匹配；它与表名中可能存在的子字符串不匹配。 如果在配置中包含此属性，请不要同时设置table.include.list属性。 |
+| table.exclude.list              | No default                                     | 一个可选的逗号分隔的正则表达式列表，用于匹配要从监视中排除的表的完全限定表标识符。连接器从排除列表中未指定的任何表中捕获更改事件。使用以下格式指定每个表的标识符：<schema_name>.<table_name>为了匹配表的名称，Debezium应用您指定为锚定正则表达式的正则表达式。也就是说，指定的表达式与表的整个名称字符串相匹配；它与表名中可能存在的子字符串不匹配。 如果在配置中包含此属性，请不要同时设置table.include.list属性。 |
 | max.batch.size                  | 2048                                           | 一个正整数值，指定此连接器每次迭代期间要处理的每批事件的最大大小。 |
 | max.queue.size                  | 9182                                           | 正整数值，指定阻塞队列可以容纳的最大记录数。当Debezium读取数据库中的事件流时，它会在将事件写入Kafka之前将其放置在阻塞队列中。在连接器接收消息的速度快于将消息写入Kafka的速度的情况下，或者当Kafka不可用时，阻塞队列可以为从数据库读取更改事件提供背压。当连接器定期记录偏移量时，队列中保存的事件将被忽略。始终将max.queue.size的值设置为大于max.batch.size的数值。 |
 | max.queue.size.in.bytes         | 0（disabled）                                  | 一个长整数值，指定阻塞队列的最大容量（以字节为单位）。默认情况下，不会为阻塞队列指定卷限制。要指定队列可以消耗的字节数，请将此属性设置为正长值。 如果还设置了max.queue.size，则当队列大小达到任一属性指定的限制时，将阻止对队列的写入。例如，如果将max.queue.size=1000，并将[max.queue.size.in](http://max.queue.size.in/).bytes设置为5000，则在队列包含1000条记录或队列中的记录量达到5000字节后，将阻止向队列写入。 |
@@ -385,6 +385,7 @@ DBMS_YSTREAM_ADM.START(server_name  IN VARCHAR(64));
 
 1. 受限于YStream，不支持自定义数据类型、ST_GEOMETRY、BOX2D、XMLTYPE、 JSON数据类型。
 2. 不支持create table...as select增量DDL。
+3. 使用存储过程包（如DBMS_STATS.CREATE_STAT_TABLE）创建的增量DDL，无法识别出具体的DDL，可能会导致数据同步过程中出现元数据对不上，会导致数据同步报错。
 
 ## 8. Q&A
 
