@@ -175,7 +175,7 @@ class YStreamEventHandler {
     }
 
     private void dispatchDataChangeEvent(YStreamDataChangeRecord record, Map<String, Object> chunkValues) throws InterruptedException {
-        LOGGER.info("Processing DML event {}", record.getYstreamDml());
+        LOGGER.debug("Processing DML event {}", record.getYstreamDml());
         boolean truncateTable = record.isTruncateTable();
         TableId tableId = getTableId(record);
 
@@ -262,7 +262,7 @@ class YStreamEventHandler {
     }
 
     private void dispatchSchemaChangeEvent(YstreamDdl ddl) throws InterruptedException {
-        LOGGER.info("Processing DDL event {}", ddl.getDdlText());
+        LOGGER.debug("Processing DDL event {}", ddl.getDdlText());
 
         TableId tableId = getTableId(ddl);
 
