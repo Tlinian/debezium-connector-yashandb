@@ -166,15 +166,41 @@ DBMS_YSTREAM_ADM.START(server_name  IN VARCHAR(64));
 
 ## 4. 权限管理
 
-| 权限授予                                         | 说明                    |
-| :----------------------------------------------- | :---------------------- |
-| GRANT CREATE SESSION TO *username*;              | 创建会话所需权限        |
-| GRANT SELECT ON V_$DATABASE TO *username*;       | 查询闪回scn所需权限     |
-| GRANT SELECT ON V_$TRANSACTION TO *username*;    | 查询活跃事务所需权限    |
-| GRANT SELECT ON V_$YSTREAM_SERVER TO *username*; | 查询YStream服务所需权限 |
-| GRANT SELECT ANY TABLE TO *username*;            | 待迁移表的查询权限      |
-| GRANT FLASHBACK ANY TABLE TO *username*;         | 待迁移表的闪回查询权限  |
-| GRANT YSTREAM_CAPTURE TO *username*;             | YStream使用所需权限     |
+| 权限授予                                                          | 说明                             |
+|:--------------------------------------------------------------|:-------------------------------|
+| GRANT CREATE SESSION TO *username*;                           | 创建会话所需权限                       |
+| GRANT SELECT ON V_$DATABASE TO *username*;                    | 查询闪回scn所需权限                    |
+| GRANT SELECT ON V_$TRANSACTION TO *username*;                 | 查询活跃事务所需权限                     |
+| GRANT SELECT ON V_$YSTREAM_SERVER TO *username*;              | 查询YStream服务所需权限                |
+| GRANT SELECT ANY TABLE TO *username*;                         | 待迁移表的查询权限                      |
+| GRANT FLASHBACK ANY TABLE TO *username*;                      | 待迁移表的闪回查询权限                    |
+| GRANT YSTREAM_CAPTURE TO *username*;                          | YStream使用所需权限                  |
+| GRANT ALTER SESSION TO *username*;                          | 允许用户更改其当前会话的属性                 |
+| GRANT SELECT ON SYS.DBA_LOBS TO *username*;                 | 允许用户查询 SYS.DBA_LOBS数据字典视图      |
+| GRANT SELECT ON SYS.V_$DATAFILE TO *username*;              | 允许用户查询 SYS.V_$DATAFILE动态性能视图   |
+| GRANT SELECT ON SYS.DBA_SEGMENTS TO *username*;             | 允许查询所有数据库段（表、分区等）的物理存储信息       |
+| GRANT FLASHBACK ON SYS.DBA_SEGMENTS TO *username*;          | 允许查询该视图在过去某个时间点（SCN）的物理存储信息    |
+| GRANT FLASHBACK ON SYS.DBA_LOBS TO *username*;              | 允许查询该视图在过去某个时间点的LOB字段元数据       |
+| GRANT SELECT ON SYS.DBA_TABLES TO *username*;               | 允许查询所有表的基本元数据信息                |
+| GRANT FLASHBACK ON SYS.DBA_TABLES TO *username*;            | 允许查询该视图在过去某个时间点的表元数据           |
+| GRANT SELECT ON SYS.DBA_TAB_PARTITIONS TO *username*;       | 允许查询所有表分区的元数据信息                |
+| GRANT FLASHBACK ON SYS.DBA_TAB_PARTITIONS TO *username*;    | 允许查询该视图在过去某个时间点的分区元数据          |
+| GRANT SELECT ON SYS.DBA_TAB_SUBPARTITIONS TO *username*;    | 允许查询所有表子分区的元数据信息               |
+| GRANT FLASHBACK ON SYS.DBA_TAB_SUBPARTITIONS TO *username*; | 允许查询该视图在过去某个时间点的子分区元数据         |
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 ## 5. 连接器属性
 
