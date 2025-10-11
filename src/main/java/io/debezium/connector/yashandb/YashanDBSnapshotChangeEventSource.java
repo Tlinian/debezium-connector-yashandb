@@ -73,7 +73,52 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
     protected final EventDispatcher<YashanDBPartition, TableId> dispatcher;
     protected final Clock clock;
 
-    private record TmpRowids(String partitionName, String minRowidSql, String maxRowidSql) {}
+    private static final class TmpRowids {
+        private final String partitionName;
+        private final String minRowidSql;
+        private final String maxRowidSql;
+
+        private TmpRowids(String partitionName, String minRowidSql, String maxRowidSql) {
+            this.partitionName = partitionName;
+            this.minRowidSql = minRowidSql;
+            this.maxRowidSql = maxRowidSql;
+        }
+
+        public String partitionName() {
+            return partitionName;
+        }
+
+        public String minRowidSql() {
+            return minRowidSql;
+        }
+
+        public String maxRowidSql() {
+            return maxRowidSql;
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (obj == this) return true;
+            if (obj == null || obj.getClass() != this.getClass()) return false;
+            var that = (TmpRowids) obj;
+            return Objects.equals(this.partitionName, that.partitionName) &&
+                    Objects.equals(this.minRowidSql, that.minRowidSql) &&
+                    Objects.equals(this.maxRowidSql, that.maxRowidSql);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(partitionName, minRowidSql, maxRowidSql);
+        }
+
+        @Override
+        public String toString() {
+            return "TmpRowids[" +
+                    "partitionName=" + partitionName + ", " +
+                    "minRowidSql=" + minRowidSql + ", " +
+                    "maxRowidSql=" + maxRowidSql + ']';
+        }
+    }
     //private ConcurrentMap<TableId, Long> tablesCount;
 
 
@@ -231,9 +276,6 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
         queryTablesPartion(ctx.tableSplitMap,snapshotContext.offset.getScn().toString());
     }
 
-
-    /*--------begin--------------------*/
-
     public String quoteIdentifier(final String identifier) {
         return identifierQuote + identifier + identifierQuote;
     }
@@ -245,20 +287,22 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
     }
     public String getMinRowidSql(
             final SnapshotTableSplitInfo table, final String snapshotOffset) {
-        return "SELECT MIN(ROWID) AS %s FROM %s %s"
-                .formatted(
-                        YashanDBConnection.DialectQueryField.MIN_ROWID.getName(),
-                        getObjectName(table.getTableId()),
-                        AS_OF_SCN+snapshotOffset);
+        return String.format(
+                "SELECT MIN(ROWID) AS %s FROM %s %s",
+                YashanDBConnection.DialectQueryField.MIN_ROWID.getName(),
+                getObjectName(table.getTableId()),
+                AS_OF_SCN + snapshotOffset
+        );
     }
 
     public String getMaxRowidSql(
             final SnapshotTableSplitInfo table, final String snapshotOffset) {
-        return "SELECT MAX(ROWID) AS %s FROM %s %s"
-                .formatted(
-                        YashanDBConnection.DialectQueryField.MAX_ROWID.getName(),
-                        getObjectName(table.getTableId()),
-                        AS_OF_SCN+snapshotOffset);
+        return String.format(
+                "SELECT MAX(ROWID) AS %s FROM %s %s",
+                YashanDBConnection.DialectQueryField.MAX_ROWID.getName(),
+                getObjectName(table.getTableId()),
+                AS_OF_SCN + snapshotOffset
+        );
     }
 
     private String getRowid(
@@ -338,11 +382,12 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
         }
     }
     public String getDataFileInfoSql() {
-        return "select TS# AS %s, RELATIVE_FNO AS %s, BLOCKS AS %s FROM SYS.V_$DATAFILE"
-                .formatted(
-                        YashanDBConnection.DialectQueryField.TS_ID.getName(),
-                        YashanDBConnection.DialectQueryField.DATAFILE_NO.getName(),
-                        YashanDBConnection.DialectQueryField.BLOCKS.getName());
+        return String.format(
+                "select TS# AS %s, RELATIVE_FNO AS %s, BLOCKS AS %s FROM SYS.V_$DATAFILE",
+                YashanDBConnection.DialectQueryField.TS_ID.getName(),
+                YashanDBConnection.DialectQueryField.DATAFILE_NO.getName(),
+                YashanDBConnection.DialectQueryField.BLOCKS.getName()
+        );
     }
 
     public Map<String, Integer> queryDatafileInfo() throws Exception {
@@ -356,23 +401,25 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
             final TableId tableInfo,
             final String partitionName,
             String snapshotOffset) {
-        return "SELECT MIN(ROWID) AS %s FROM %s partition (%s) %s"
-                .formatted(
-                        YashanDBConnection.DialectQueryField.MIN_ROWID.getName(),
-                        getObjectName(tableInfo),
-                        quoteIdentifier(partitionName),
-                        AS_OF_SCN + snapshotOffset);
+        return String.format(
+                "SELECT MIN(ROWID) AS %s FROM %s partition (%s) %s",
+                YashanDBConnection.DialectQueryField.MIN_ROWID.getName(),
+                getObjectName(tableInfo),
+                quoteIdentifier(partitionName),
+                AS_OF_SCN + snapshotOffset
+        );
     }
     public String getPartitionTableMaxRowidSql(
             final TableId tableInfo,
             final String partitionName,
             String snapshotOffset) {
-        return "SELECT MAX(ROWID) AS %s FROM %s partition (%s) %s"
-                .formatted(
-                        YashanDBConnection.DialectQueryField.MAX_ROWID.getName(),
-                        getObjectName(tableInfo),
-                        quoteIdentifier(partitionName),
-                        AS_OF_SCN + snapshotOffset);
+        return String.format(
+                "SELECT MAX(ROWID) AS %s FROM %s partition (%s) %s",
+                YashanDBConnection.DialectQueryField.MAX_ROWID.getName(),
+                getObjectName(tableInfo),
+                quoteIdentifier(partitionName),
+                AS_OF_SCN + snapshotOffset
+        );
     }
 
 
@@ -492,7 +539,12 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
                         columnNames.stream().map(this::quoteIdentifier).collect(Collectors.joining(",")),
                         getObjectName(table));
         final String ofScn = AS_OF_SCN+snapshotOffset;
-        return "%s PARTITION (%s) %s".formatted(sql, quoteIdentifier(partitionName), ofScn);
+        return String.format(
+                "%s PARTITION (%s) %s",
+                sql,
+                quoteIdentifier(partitionName),
+                ofScn
+        );
     }
 
     public String getSnapshotSplitSql(
@@ -563,6 +615,31 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
                 null,
                 null,
                 partitionName);
+    }
+
+    public void splitTableSqlNoRowid(final SnapshotTableSplitInfo tableInfor,
+                              String partitionName,
+                              String snapshotOffset,
+                              ArrayList<String> list) {
+
+        if (partitionName == null) {
+            final String sql =
+                    getSnapshotQuerySql(
+                            tableInfor.getTableId(),
+                            tableInfor.getColumnNames(),
+                            snapshotOffset);
+            LOGGER.warn("partition table:{} ,but the partition name is null", tableInfor.getTableId());
+            list.add(sql);
+        } else {
+            final String sql =
+                    getSnapshotPartitionTableQuerySql(
+                            tableInfor.getTableId(),
+                            partitionName,
+                            tableInfor.getColumnNames(),
+                            snapshotOffset);
+            list.add(sql);
+        }
+
     }
 
     public void splitTableSql(final SnapshotTableSplitInfo tableInfor,
@@ -642,19 +719,22 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
         int partCount = 0;
         for (final YaShanPartitionSplitRecord rowid : rowids) {
             if (rowid.minrowid() == null || rowid.maxrowid() == null) {
+                //此种情况不代表没有数据，可能是数据量比较小，无需再划分,通过分区名直接获取数据
+                splitTableSqlNoRowid(table,rowid.partitionName(),snapshotOffset,queryTablesSql.get(table.getTableId()));
                 partCount++;
-                LOGGER.warn("The min rowid and max rowid for partitioned tables are null,Table:{} data will not be migrated", table.getTableId());
+                //LOGGER.warn("The min rowid or max rowid for partitioned tables are null,Table:{} data will not be migrated", table.getTableId());
                 continue;
             }
             //对分区再根据rowid进行划分
             List<YaShanRowid> splitRowids =
                     YaShanRowidSplitUtil.getYashanDBSplitRowid(
                             rowid.minrowid(), rowid.maxrowid(), parallelism, datafileInfo);
+
             LOGGER.info(
                     "Partition Table: {}, partitionName: {}, split rowids : {}",
                     table.getTableId().toString(),
                     rowid.partitionName(),
-                    splitRowids.stream().map(YaShanRowid::getRowid).toList());
+                    splitRowids.stream().map(YaShanRowid::getRowid).collect(Collectors.toList()));
             partCount += splitRowids.size() + 1;
             //每
             splitTableSql(table,rowid.partitionName(),splitRowids,snapshotOffset,queryTablesSql.get(table.getTableId()));
@@ -755,7 +835,14 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
         final StringBuilder whereCondition = new StringBuilder();
         schemaTables.forEach(
                 (key, value) ->
-                        whereCondition.append(CONDITION_CLAUSE_FORMAT.formatted(key, String.join(",", value))));
+                        whereCondition.append(
+                                String.format(
+                                        CONDITION_CLAUSE_FORMAT,
+                                        key,
+                                        String.join(",", value)
+                                )
+                        )
+        );
         return whereCondition.toString();
     }
 
@@ -766,8 +853,11 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
         final AtomicInteger availableLength = new AtomicInteger(maxLength);
         final HashMap<String, List<String>> schemaTableMap = new HashMap<>();
         for (final Map.Entry<String, List<SnapshotTableSplitInfo>> entry : tableMap.entrySet()) {
+
             final List<SnapshotTableSplitInfo> notEmptyTables =
-                    entry.getValue().stream().filter(t -> !t.isEmptyTable()).toList();
+                    entry.getValue().stream()
+                            .filter(t -> !t.isEmptyTable())
+                            .collect(Collectors.toList());
             if (null == notEmptyTables || notEmptyTables.isEmpty()) {
                 continue;
             }
@@ -815,21 +905,23 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
     protected List<String> getTableSizeAsOfScnSqls(
             Map<String, List<SnapshotTableSplitInfo>> tablesBySchema,
             final String snapshotOffset) {
-        final String sql =
-                """
-                  SELECT
-                    OWNER AS %s,
-                    SEGMENT_NAME AS %s,
-                    SUM(NVL(BYTES, 0)) / 1024 AS %s
-                  FROM SYS.DBA_SEGMENTS %%s t
-                    WHERE FALSE
-                      %%s
-                    GROUP BY t.OWNER, t.SEGMENT_NAME
-                """
-                        .formatted(
-                                YashanDBConnection.DialectQueryField.SCHEMA_NAME.getName(),
-                                YashanDBConnection.DialectQueryField.TABLE_NAME.getName(),
-                                YashanDBConnection.DialectQueryField.DATA_SIZE.getName());;
+
+        final String sql = String.format(
+                "SELECT\n" +
+                        "  OWNER AS %s,\n" +
+                        "  SEGMENT_NAME AS %s,\n" +
+                        "  SUM(NVL(BYTES, 0)) / 1024 AS %s\n" +
+                        "FROM SYS.DBA_SEGMENTS %%s t\n" +
+                        "  WHERE FALSE\n" +
+                        "    %%s\n" +
+                        "  GROUP BY t.OWNER, t.SEGMENT_NAME",
+                YashanDBConnection.DialectQueryField.SCHEMA_NAME.getName(),
+                YashanDBConnection.DialectQueryField.TABLE_NAME.getName(),
+                YashanDBConnection.DialectQueryField.DATA_SIZE.getName()
+        );
+
+
+
         final int scnLength = 18;
         final int availableLength = MAX_OBJECT_JOINER_LENGTH - sql.getBytes().length + 4 - scnLength;
 
@@ -842,24 +934,26 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
     public List<String> getTableLobSizeSqls(
             final Map<String, List<SnapshotTableSplitInfo>> tableMap,
             final String snapshotOffset) {
-        final String sql =
-                """
-                      SELECT
-                         t.OWNER AS %s,
-                         t.TABLE_NAME AS %s,
-                         SUM(s1.BYTES)/1024 AS %s
-                      FROM SYS.DBA_LOBS %%s t
-                      JOIN SYS.DBA_SEGMENTS %%s s1
-                         ON t.OWNER = s1.OWNER
-                            AND t.SEGMENT_NAME = s1.SEGMENT_NAME
-                         WHERE FALSE
-                         %%s
-                         GROUP BY t.OWNER, t.TABLE_NAME
-                    """
-                        .formatted(
-                                YashanDBConnection.DialectQueryField.SCHEMA_NAME.getName(),
-                                YashanDBConnection.DialectQueryField.TABLE_NAME.getName(),
-                                YashanDBConnection.DialectQueryField.DATA_SIZE.getName());;
+
+        final String sql = String.format(
+                "SELECT\n" +
+                        "  t.OWNER AS %s,\n" +
+                        "  t.TABLE_NAME AS %s,\n" +
+                        "  SUM(s1.BYTES)/1024 AS %s\n" +
+                        "FROM SYS.DBA_LOBS %%s t\n" +
+                        "JOIN SYS.DBA_SEGMENTS %%s s1\n" +
+                        "  ON t.OWNER = s1.OWNER\n" +
+                        "    AND t.SEGMENT_NAME = s1.SEGMENT_NAME\n" +
+                        "WHERE FALSE\n" +
+                        "  %%s\n" +
+                        "GROUP BY t.OWNER, t.TABLE_NAME",
+                YashanDBConnection.DialectQueryField.SCHEMA_NAME.getName(),
+                YashanDBConnection.DialectQueryField.TABLE_NAME.getName(),
+                YashanDBConnection.DialectQueryField.DATA_SIZE.getName()
+        );
+
+
+
         final int scnLength = 18;
         final int availableLength = MAX_OBJECT_JOINER_LENGTH - sql.getBytes().length + 6 - scnLength;
 
@@ -921,59 +1015,58 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
             final String schema,
             final List<String> tables,
             final String snapshotOffset) {
-        return """
-                SELECT TABLE_NAME                                                 as TABLE_NAME,
-                       CASE WHEN PARTITIONED = 'Y' THEN 'TRUE' ELSE 'FALSE' END as HAVE_PARTITION
-                FROM DBA_TABLES %s
-                WHERE OWNER = %s
-                  AND TABLE_NAME in (%s)
-                """
-                .formatted(
-                        AS_OF_SCN+snapshotOffset,
-                        quoteStringClause(schema),
-                        String.join(",", tables.stream().map(this::quoteStringClause).toList()));
+
+        return String.format(
+                "SELECT TABLE_NAME as TABLE_NAME,\n" +
+                        "       CASE WHEN PARTITIONED = 'Y' THEN 'TRUE' ELSE 'FALSE' END as HAVE_PARTITION\n" +
+                        "FROM DBA_TABLES %s\n" +
+                        "WHERE OWNER = %s\n" +
+                        "  AND TABLE_NAME in (%s)",
+                AS_OF_SCN + snapshotOffset,
+                quoteStringClause(schema),
+                String.join(",", tables.stream().map(this::quoteStringClause).collect(Collectors.toList()))
+        );
     }
 
     public String queryPartitionInforSql(
             final String schema,
             final List<String> tables,
             final String snapshotOffset) {
-        return """
-             SELECT C.TABLE_OWNER,
-                    C.TABLE_NAME,
-                    C.PARTITION_NAME,
-                    A.BYTES
-             FROM DBA_TAB_PARTITIONS %3$s C
-                      JOIN (SELECT OWNER,SEGMENT_NAME, PARTITION_NAME, SUM(NVL(BYTES, 0)) / 1024 AS BYTES
-                            FROM DBA_SEGMENTS %3$s
-                            WHERE SEGMENT_TYPE IN ('TABLE PARTITION')
-                            GROUP BY SEGMENT_NAME, PARTITION_NAME,OWNER) A
-                           ON C.TABLE_OWNER = A.OWNER
-                               AND C.TABLE_NAME = A.SEGMENT_NAME
-                               AND C.PARTITION_NAME = A.PARTITION_NAME
-             WHERE C.TABLE_OWNER = %1$s
-             AND C.TABLE_NAME IN (%2$s)
-             UNION ALL
-             SELECT C.TABLE_OWNER,
-                    C.TABLE_NAME,
-                    C.PARTITION_NAME,
-                    SUM(A.BYTES) AS BYTES
-             FROM DBA_TAB_SUBPARTITIONS %3$s C
-                      JOIN (SELECT OWNER,SEGMENT_NAME, PARTITION_NAME, SUM(NVL(BYTES, 0)) / 1024 AS BYTES
-                            FROM DBA_SEGMENTS %3$s
-                            WHERE SEGMENT_TYPE IN ('TABLE SUBPARTITION')
-                            GROUP BY SEGMENT_NAME, PARTITION_NAME,OWNER) A
-                           ON C.TABLE_OWNER = A.OWNER
-                               AND C.TABLE_NAME = A.SEGMENT_NAME
-                               AND C.SUBPARTITION_NAME = A.PARTITION_NAME
-             WHERE C.TABLE_OWNER = %1$s
-             AND C.TABLE_NAME IN (%2$s)
-             GROUP BY C.TABLE_OWNER, C.TABLE_NAME, C.PARTITION_NAME
-            """
-                .formatted(
-                        quoteStringClause(schema),
-                        String.join(",", tables.stream().map(this::quoteStringClause).toList()),
-                        AS_OF_SCN+snapshotOffset);
+
+        return String.format(
+                "SELECT C.TABLE_OWNER,\n" +
+                        "       C.TABLE_NAME,\n" +
+                        "       C.PARTITION_NAME,\n" +
+                        "       A.BYTES\n" +
+                        "FROM DBA_TAB_PARTITIONS %3$s C\n" +
+                        "JOIN (SELECT OWNER, SEGMENT_NAME, PARTITION_NAME, SUM(NVL(BYTES, 0)) / 1024 AS BYTES\n" +
+                        "      FROM DBA_SEGMENTS %3$s\n" +
+                        "      WHERE SEGMENT_TYPE IN ('TABLE PARTITION')\n" +
+                        "      GROUP BY SEGMENT_NAME, PARTITION_NAME, OWNER) A\n" +
+                        "  ON C.TABLE_OWNER = A.OWNER\n" +
+                        "     AND C.TABLE_NAME = A.SEGMENT_NAME\n" +
+                        "     AND C.PARTITION_NAME = A.PARTITION_NAME\n" +
+                        "WHERE C.TABLE_OWNER = %1$s\n" +
+                        "  AND C.TABLE_NAME IN (%2$s)\n" +
+                        "UNION ALL\n" +
+                        "SELECT C.TABLE_OWNER,\n" +
+                        "       C.TABLE_NAME,\n" +
+                        "       C.PARTITION_NAME,\n" +
+                        "       SUM(A.BYTES) AS BYTES\n" +
+                        "FROM DBA_TAB_SUBPARTITIONS %3$s C\n" +
+                        "JOIN (SELECT OWNER, SEGMENT_NAME, PARTITION_NAME, SUM(NVL(BYTES, 0)) / 1024 AS BYTES\n" +
+                        "      FROM DBA_SEGMENTS %3$s\n" +
+                        "      WHERE SEGMENT_TYPE IN ('TABLE SUBPARTITION')\n" +
+                        "      GROUP BY SEGMENT_NAME, PARTITION_NAME, OWNER) A\n" +
+                        "  ON C.TABLE_OWNER = A.OWNER\n" +
+                        "     AND C.TABLE_NAME = A.SEGMENT_NAME\n" +
+                        "     AND C.SUBPARTITION_NAME = A.PARTITION_NAME\n" +
+                        "WHERE C.TABLE_OWNER = %1$s\n" +
+                        "  AND C.TABLE_NAME IN (%2$s)\n" +
+                        "GROUP BY C.TABLE_OWNER, C.TABLE_NAME, C.PARTITION_NAME",
+                quoteStringClause(schema),
+                String.join(",", tables.stream().map(this::quoteStringClause).collect(Collectors.toList())),
+                AS_OF_SCN + snapshotOffset);
     }
 
     public void queryTablesIsPartitioned(
@@ -1001,9 +1094,6 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
         }
     }
 
-
-
-
     public void queryTablesPartion(
             ConcurrentMap<TableId, SnapshotTableSplitInfo> tableSplitMap,
             String snapshotOffset) throws Exception {
@@ -1023,7 +1113,15 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
             String schema = entry.getKey(); // 获取键
             List<SnapshotTableSplitInfo> tableList = entry.getValue(); // 获取值（列表）
 
-            queryTablesIsPartitioned(schema, tableList.stream().map(o -> o.getTableId().table()).toList(),snapshotOffset,tablePartitionMap);
+            //queryTablesIsPartitioned(schema, tableList.stream().map(o -> o.getTableId().table()).toList(),snapshotOffset,tablePartitionMap);
+            queryTablesIsPartitioned(
+                    schema,
+                    tableList.stream()
+                            .map(o -> o.getTableId().table())
+                            .collect(Collectors.toList()),
+                    snapshotOffset,
+                    tablePartitionMap
+            );
         }
         if(null != tablePartitionMap) {
             for (Map.Entry<TableId, SnapshotTableSplitInfo> entry : tableSplitMap.entrySet()) {
@@ -1040,7 +1138,15 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
             String schema = entry.getKey();
             ArrayList<YaShanDBPartitionInfo.SubPartitionInfo> tablePartitionInfor = new ArrayList<>();
             List<SnapshotTableSplitInfo> tableList = entry.getValue(); // 获取值（列表）
-            queryTablesPartitionInfor(schema, tableList.stream().map(o -> o.getTableId().table()).toList(),snapshotOffset,tablePartitionInfor);
+            //queryTablesPartitionInfor(schema, tableList.stream().map(o -> o.getTableId().table()).toList(),snapshotOffset,tablePartitionInfor);
+            queryTablesPartitionInfor(
+                    schema,
+                    tableList.stream()
+                            .map(o -> o.getTableId().table())
+                            .collect(Collectors.toList()),  // 修复这里
+                    snapshotOffset,
+                    tablePartitionInfor
+            );
             for (YaShanDBPartitionInfo.SubPartitionInfo subPartition : tablePartitionInfor) {
                 SnapshotTableSplitInfo splitInfo = tableSplitMap.get(new TableId(YASHAN_DB_CATALOG_NAME,schema,subPartition.tableName()));
                 splitInfo.getPartitionInfo().getSubPartitionInfo().add(subPartition);
