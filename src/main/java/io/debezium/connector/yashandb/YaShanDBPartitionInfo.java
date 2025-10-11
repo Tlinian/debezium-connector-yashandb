@@ -3,13 +3,59 @@ package io.debezium.connector.yashandb;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 
 /**
  * 此类用于记录YaShan数据库本身的分区信息.
  */
 public class YaShanDBPartitionInfo {
-    public record SubPartitionInfo(String tableName, String partitionName, long size) {}
+    public static final class SubPartitionInfo {
+        private final String tableName;
+        private final String partitionName;
+        private final long size;
+
+        public SubPartitionInfo(String tableName, String partitionName, long size) {
+            this.tableName = tableName;
+            this.partitionName = partitionName;
+            this.size = size;
+        }
+
+        public String tableName() {
+            return tableName;
+        }
+
+        public String partitionName() {
+            return partitionName;
+        }
+
+        public long size() {
+            return size;
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (obj == this) return true;
+            if (obj == null || obj.getClass() != this.getClass()) return false;
+            var that = (SubPartitionInfo) obj;
+            return Objects.equals(this.tableName, that.tableName) &&
+                    Objects.equals(this.partitionName, that.partitionName) &&
+                    this.size == that.size;
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(tableName, partitionName, size);
+        }
+
+        @Override
+        public String toString() {
+            return "SubPartitionInfo[" +
+                    "tableName=" + tableName + ", " +
+                    "partitionName=" + partitionName + ", " +
+                    "size=" + size + ']';
+        }
+    }
 
     private final String schema;
     private final String tableName;
