@@ -1475,7 +1475,6 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
                                 } else {
                                     LOGGER.info("\t Processes {} : Exported {} records for table '{}' after {}", new Object[]{ProcessesNumber,rows, table.id(), Strings.duration(stop - exportStart)});
                                 }
-
                                 this.snapshotProgressListener.rowsScanned(partition, table.id(), rows);
                                 logTimer = this.YaShanGetTableScanLogTimer();
                             }
@@ -1600,7 +1599,6 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
 
             long exportStart = this.clock.currentTimeInMillis();
 
-
             for(TableId tableId : rowCountTables.keySet()) {
                 //新处理方式
                 boolean firstTable = tableOrder == 1 && snapshotMaxThreads == 1;
@@ -1611,16 +1609,18 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
                 // 获取该表的Chunk总数
                 int chunkCount = sqlList.size();
                 int currentChunkIndex = 0;
+
                 for (String selectStatement : sqlList) {
                     currentChunkIndex++;
                     // 判断是否是第一个Chunk
                     boolean isFirstChunk = (currentChunkIndex == 1);
                     // 判断是否是最后一个Chunk
                     boolean isLastChunk = (currentChunkIndex == chunkCount);
-                    Callable<Void> callable = this.YaShanCreateDataEventsForTableCallable(sourceContext, snapshotContext, snapshotReceiver, snapshotContext.tables.forTable(tableId), firstTable, lastTable, tableOrder++, tableCount, selectStatement, rowCount, connectionPool, offsets,isFirstChunk,isLastChunk,asyProcessCount+1);
+                    Callable<Void> callable = this.YaShanCreateDataEventsForTableCallable(sourceContext, snapshotContext, snapshotReceiver, snapshotContext.tables.forTable(tableId), firstTable, lastTable, tableOrder, tableCount, selectStatement, rowCount, connectionPool, offsets,isFirstChunk,isLastChunk,asyProcessCount+1);
                     completionService.submit(callable);
                     asyProcessCount++;
                 }
+                tableOrder++;
             }
 
             for(int i = 0; i < asyProcessCount; ++i) {

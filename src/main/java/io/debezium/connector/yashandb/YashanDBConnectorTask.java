@@ -156,7 +156,6 @@ public class YashanDBConnectorTask extends BaseSourceTask<YashanDBPartition, Yas
     @Override
     public List<SourceRecord> doPoll() throws InterruptedException {
         List<DataChangeEvent> records = queue.poll();
-
         List<SourceRecord> sourceRecords = records.stream()
                 .map(DataChangeEvent::getRecord)
                 .collect(Collectors.toList());
