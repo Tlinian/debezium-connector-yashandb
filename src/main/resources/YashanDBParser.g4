@@ -3414,6 +3414,10 @@ end_time_column
     : column_name
     ;
 
+comment_clause
+    : COMMENT quoted_string
+    ;
+
 column_definition
     : column_name (datatype | type_name)?
          (COLLATE collation_name)?
@@ -3421,6 +3425,7 @@ column_definition
          (NULL_ | NOT NULL_)?
          (VISIBLE | INVISIBLE)?
          (DEFAULT (ON NULL_)? column_default_value | identity_clause)?
+         (comment_clause)?
          (ENCRYPT (USING  CHAR_STRING)? (IDENTIFIED BY regular_id)? CHAR_STRING? (NO? SALT)? )?  (inline_constraint* | inline_ref_constraint)
     ;
 

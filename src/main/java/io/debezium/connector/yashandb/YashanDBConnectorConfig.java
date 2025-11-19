@@ -79,6 +79,17 @@ public class YashanDBConnectorConfig extends HistorizedRelationalDatabaseConnect
                     + "'string' represents values as an exact ISO formatted string; "
                     + "'numeric' (default) represents values using the inexact conversion into microseconds");
 
+    public static final Field DDL_PARSE_FAIL_RETRY_READ_TABLE = Field.create("ddl.parse.fail.retry.read.table")
+            .withDisplayName("Ddl parse error handling mode")
+            .withType(Type.BOOLEAN)
+            .withWidth(Width.MEDIUM)
+            .withImportance(Importance.HIGH)
+            .withGroup(Field.createGroupEntry(Field.Group.CONNECTOR, 6))
+            .withDescription("Incremental DDL Parsing Failure Handling Mode,including:" +
+                    "false -> Do nothing and throw an exception;" +
+                    "true -> Wait for the next DML event and read the source table DDL")
+            .withDefault(false);
+
     public static final Field YSTREAM_SERVER_NAME = Field.create(DATABASE_CONFIG_PREFIX + "ystream.server.name")
             .withDisplayName("Ystream out server name")
             .withType(Type.STRING)
@@ -630,6 +641,7 @@ public class YashanDBConnectorConfig extends HistorizedRelationalDatabaseConnect
     private final Duration logMiningMaxScnDeviation;
     private final StreamingAdapter streamingAdapter;
     private final String ystreamServerName;
+    private final boolean ddlParseFailRetryReadTable;
     private final int yStreamQueueSize;
     private final int yStreamPollTimeout;
     private final int yStreamClientResponseTimeout;
@@ -653,6 +665,7 @@ public class YashanDBConnectorConfig extends HistorizedRelationalDatabaseConnect
         this.queryFetchSize = config.getInteger(QUERY_FETCH_SIZE);
         this.streamingAdapter = new YStreamAdapter(this);
         this.ystreamServerName = config.getString(YSTREAM_SERVER_NAME);
+        this.ddlParseFailRetryReadTable = config.getBoolean(DDL_PARSE_FAIL_RETRY_READ_TABLE);
 
         // LogMiner
         this.logMiningArchiveLogRetention = Duration.ofHours(config.getLong(LOG_MINING_ARCHIVE_LOG_HOURS));
@@ -699,6 +712,10 @@ public class YashanDBConnectorConfig extends HistorizedRelationalDatabaseConnect
 
     public String getYstreamServerName() {
         return ystreamServerName;
+    }
+
+    public Boolean getDdlParseFailRetryReadTable() {
+        return ddlParseFailRetryReadTable;
     }
 
     public IntervalHandlingMode getIntervalHandlingMode() {

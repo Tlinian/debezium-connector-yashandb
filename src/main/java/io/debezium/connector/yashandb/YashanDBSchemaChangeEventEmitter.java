@@ -49,6 +49,7 @@ public class YashanDBSchemaChangeEventEmitter implements SchemaChangeEventEmitte
     private final TableFilter filters;
     private final YashanDBStreamingChangeEventSourceMetrics streamingMetrics;
     private final TruncateReceiver truncateReceiver;
+    private final YashanDBConnectorConfig connectorConfig;
 
     public YashanDBSchemaChangeEventEmitter(YashanDBConnectorConfig connectorConfig, YashanDBPartition partition,
                                             YashanDBOffsetContext offsetContext, TableId tableId, String sourceDatabaseName,
@@ -66,6 +67,7 @@ public class YashanDBSchemaChangeEventEmitter implements SchemaChangeEventEmitte
         this.streamingMetrics = streamingMetrics;
         this.filters = connectorConfig.getTableFilters().dataCollectionFilter();
         this.truncateReceiver = truncateReceiver;
+        this.connectorConfig = connectorConfig;
     }
 
     @Override
@@ -82,14 +84,18 @@ public class YashanDBSchemaChangeEventEmitter implements SchemaChangeEventEmitte
             parser.setCurrentDatabase(sourceDatabaseName);
             parser.setCurrentSchema(objectOwner);
             parser.parse(ddlText, schema.getTables());
-        }
-        catch (ParsingException | MultipleParsingExceptions e) {
+        } catch (ParsingException | MultipleParsingExceptions e) {
             if (schema.skipUnparseableDdlStatements()) {
-                LOGGER.warn("Ignoring unparsable DDL statement '{}': {}", ddlText, e);
+                LOGGER.warn("Ignoring unparsable DDL statement '{}'", ddlText, e);
                 streamingMetrics.incrementWarningCount();
                 streamingMetrics.incrementUnparsableDdlCount();
-            }
-            else {
+                if (connectorConfig.getDdlParseFailRetryReadTable()) {
+                    if (tableId != null) {
+                        LOGGER.warn("DDL parsing failed. Next time when performing DML synchronization, the full table structure will be read and parsed.");
+                        schema.getTables().removeTable(tableId);
+                    }
+                }
+            } else {
                 throw e;
             }
         }
@@ -122,8 +128,7 @@ public class YashanDBSchemaChangeEventEmitter implements SchemaChangeEventEmitte
                 if (!schema.skipSchemaChangeEvent(event)) {
                     if (SchemaChangeEvent.SchemaChangeEventType.TRUNCATE == event.getType()) {
                         truncateReceiver.processTruncateEvent();
-                    }
-                    else {
+                    } else {
                         receiver.schemaChangeEvent(event);
                     }
 
@@ -158,8 +163,7 @@ public class YashanDBSchemaChangeEventEmitter implements SchemaChangeEventEmitte
                     tableId.schema(),
                     event.statement(),
                     schema.tableFor(event.tableId()));
-        }
-        else {
+        } else {
             return SchemaChangeEvent.ofRename(
                     partition,
                     offsetContext,
