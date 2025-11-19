@@ -5,14 +5,7 @@
  */
 package io.debezium.connector.yashandb.ystream;
 
-import com.sics.ystream.result.YstreamChunk;
-import com.sics.ystream.result.YstreamColumns;
-import com.sics.ystream.result.YstreamDdl;
-import com.sics.ystream.result.YstreamDml;
-import com.sics.ystream.result.YstreamLcrInterface;
-import com.sics.ystream.result.YstreamMetadata;
-import com.sics.ystream.result.YstreamXactBegin;
-import com.sics.ystream.result.YstreamXactCommit;
+import com.sics.ystream.result.*;
 import com.yashandb.jdbc.YasTypes;
 import io.debezium.DebeziumException;
 import io.debezium.connector.yashandb.YashanDBConnection;
@@ -37,6 +30,7 @@ import java.time.Instant;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * Handler for YashanDB DDL and DML events. Just forwards events to the {@link EventDispatcher}.
@@ -214,51 +208,66 @@ class YStreamEventHandler {
             }
         }
 
-        // Xstream does not provide any before state for LOB columns and so this map will be
-        // populated here by column name with the OracleValueConverters.UNAVAILABLE_VALUE.
-        Map<String, Object> oldChunkValues = new HashMap<>(0);
+        try {
+            // Xstream does not provide any before state for LOB columns and so this map will be
+            // populated here by column name with the OracleValueConverters.UNAVAILABLE_VALUE.
+            Map<String, Object> oldChunkValues = new HashMap<>(0);
 
-        if (chunkValues == null) {
-            // Happens when dispatching an LCR without any chunk data.
-            chunkValues = new HashMap<>(0);
-        }
-
-        // LCR events may arrive both with and without chunk data.
-        //
-        // For example a DELETE by a primary key on a table with LOB columns will not supply any
-        // LOB chunk data. In other scenarios such as an UPDATE where a LOB column is modified,
-        // the updated LOB value will be provided but the prior value will not be.
-        //
-        // So in either case, the values need to be serialized here such that any LOB column that
-        // is not explicitly provided in the map is initialized with the unavailable value
-        // marker object so its transformed correctly by the value converters.
-
-        for (Column column : schema.getLobColumnsForTable(table.id())) {
-            // again Xstream doesn't supply before state for LOB values; explicitly use unavailable value
-            oldChunkValues.put(column.name(), YashanDBValueConverters.UNAVAILABLE_VALUE);
-            if (!chunkValues.containsKey(column.name())) {
-                // Column not supplied, initialize with unavailable value marker
-                LOGGER.trace("\tColumn '{}' not supplied, initialized with unavailable value", column.name());
-                chunkValues.put(column.name(), YashanDBValueConverters.UNAVAILABLE_VALUE);
+            if (chunkValues == null) {
+                // Happens when dispatching an LCR without any chunk data.
+                chunkValues = new HashMap<>(0);
             }
+
+            // LCR events may arrive both with and without chunk data.
+            //
+            // For example a DELETE by a primary key on a table with LOB columns will not supply any
+            // LOB chunk data. In other scenarios such as an UPDATE where a LOB column is modified,
+            // the updated LOB value will be provided but the prior value will not be.
+            //
+            // So in either case, the values need to be serialized here such that any LOB column that
+            // is not explicitly provided in the map is initialized with the unavailable value
+            // marker object so its transformed correctly by the value converters.
+
+            for (Column column : schema.getLobColumnsForTable(table.id())) {
+                // again Xstream doesn't supply before state for LOB values; explicitly use unavailable value
+                oldChunkValues.put(column.name(), YashanDBValueConverters.UNAVAILABLE_VALUE);
+                if (!chunkValues.containsKey(column.name())) {
+                    // Column not supplied, initialize with unavailable value marker
+                    LOGGER.trace("\tColumn '{}' not supplied, initialized with unavailable value", column.name());
+                    chunkValues.put(column.name(), YashanDBValueConverters.UNAVAILABLE_VALUE);
+                }
+            }
+            Table tableFor = schema.tableFor(tableId);
+            Object[] newValues = truncateTable ? null : YStreamChangeRecordEmitter.getColumnValues(tableFor, record.getYstreamDml().getNewValues(), chunkValues);
+            Object[] oldValues = truncateTable ? null : YStreamChangeRecordEmitter.getColumnValues(tableFor, record.getYstreamDml().getOldValues(), oldChunkValues);
+            if (!truncateTable) {
+                YStreamChangeRecordEmitter.calculateColumnValues(oldValues, newValues);
+            }
+            dispatcher.dispatchDataChangeEvent(
+                    partition,
+                    tableId,
+                    new YStreamChangeRecordEmitter(
+                            connectorConfig,
+                            partition,
+                            offsetContext,
+                            record,
+                            tableFor,
+                            schema,
+                            clock, newValues, oldValues));
+        } catch (InterruptedException e) {
+            throw e;
+        } catch (Exception e) {
+            String columnsInSchema = schema.tableFor(tableId).columns().stream().map(Column::name).collect(Collectors.joining(","));
+            String columnsOnTable = record.getYstreamDml().getNewValues().getColumns().stream()
+                    .map(YstreamColumn::getColumn)
+                    .map(com.sics.ystream.metadata.Column::getColumnName)
+                    .collect(Collectors.joining(","));
+            LOGGER.error("Dispatch data change event error,record schema: {}," +
+                    "table: {}," +
+                    "columns in the schema: {}," +
+                    "columns on the table: {}", tableId.schema(), tableId.table(), columnsInSchema, columnsOnTable);
+            throw e;
         }
-        Table tableFor = schema.tableFor(tableId);
-        Object[] newValues = truncateTable ? null : YStreamChangeRecordEmitter.getColumnValues(tableFor, record.getYstreamDml().getNewValues(), chunkValues);
-        Object[] oldValues = truncateTable ? null : YStreamChangeRecordEmitter.getColumnValues(tableFor, record.getYstreamDml().getOldValues(), oldChunkValues);
-        if (!truncateTable){
-            YStreamChangeRecordEmitter.calculateColumnValues(oldValues, newValues);
-        }
-        dispatcher.dispatchDataChangeEvent(
-                partition,
-                tableId,
-                new YStreamChangeRecordEmitter(
-                        connectorConfig,
-                        partition,
-                        offsetContext,
-                        record,
-                        tableFor,
-                        schema,
-                        clock, newValues, oldValues));
     }
 
     private void dispatchSchemaChangeEvent(YstreamDdl ddl) throws InterruptedException {

@@ -244,6 +244,7 @@ DBMS_YSTREAM_ADM.START(server_name  IN VARCHAR(64));
 | converters                      | No default                                     | 配置Debezium的自定义转换器                                   |
 | <converter_name>.type           | No default                                     | 配置Debezium的自定义转换器的类名                             |
 | <converter_name>.<param_name>   | No default                                     | 自定义转换器的配置，配置信息根据转换器的使用方式来设置       |
+| ddl.parse.fail.retry.read.table  | false                                          | 增量DDL解析失败后，处理DML事件时全量读取源表结构分析。schema.history.internal.skip.unparseable.ddl与ddl.parse.fail.retry.read.table均设置为true生效。|
 
 其他参数请参考：[Debezium Connector for Oracle :: Debezium Documentation](https://debezium.io/documentation/reference/2.7/connectors/oracle.html#oracle-connector-properties)
 
