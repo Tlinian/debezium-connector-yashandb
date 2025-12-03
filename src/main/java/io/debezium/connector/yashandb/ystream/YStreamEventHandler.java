@@ -5,7 +5,15 @@
  */
 package io.debezium.connector.yashandb.ystream;
 
-import com.sics.ystream.result.*;
+import com.sics.ystream.result.YstreamChunk;
+import com.sics.ystream.result.YstreamColumn;
+import com.sics.ystream.result.YstreamColumns;
+import com.sics.ystream.result.YstreamDdl;
+import com.sics.ystream.result.YstreamDml;
+import com.sics.ystream.result.YstreamLcrInterface;
+import com.sics.ystream.result.YstreamMetadata;
+import com.sics.ystream.result.YstreamXactBegin;
+import com.sics.ystream.result.YstreamXactCommit;
 import com.yashandb.jdbc.YasTypes;
 import io.debezium.DebeziumException;
 import io.debezium.connector.yashandb.YashanDBConnection;
@@ -30,6 +38,7 @@ import java.time.Instant;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 /**
@@ -145,6 +154,10 @@ class YStreamEventHandler {
         }
         // XStream's receiveLCRCallback() doesn't reliably propagate exceptions, so we do that ourselves here
         catch (Exception e) {
+            LOGGER.error("Process record: {},{}",
+                    Objects.toString(record.getYstreamLcrInterface(), "null"),
+                    Objects.toString(record.getTableMetadata(), "null"));
+            LOGGER.error("Process record error: ", e);
             errorHandler.setProducerThrowable(e);
         }
     }
@@ -175,37 +188,8 @@ class YStreamEventHandler {
 
         Table table = schema.tableFor(tableId);
         if (table == null) {
-            if (!connectorConfig.getTableFilters().dataCollectionFilter().isIncluded(tableId)) {
-                LOGGER.trace("Table {} is new but excluded, schema change skipped.", tableId);
-                return;
-            }
-
-            LOGGER.warn("Obtaining schema for table {}, which should be already loaded, this may signal potential bug in fetching table schemas.", tableId);
-            final String tableDdl;
-            tableDdl = getTableMetadataDdl(tableId);
-
-            LOGGER.info("Table {} will be captured.", tableId);
-            dispatcher.dispatchSchemaChangeEvent(
-                    partition,
-                    offsetContext,
-                    tableId,
-                    new YashanDBSchemaChangeEventEmitter(
-                            connectorConfig,
-                            partition,
-                            offsetContext,
-                            tableId,
-                            tableId.catalog(),
-                            tableId.schema(),
-                            tableDdl,
-                            schema,
-                            Instant.now(),
-                            streamingMetrics,
-                            null));
-
-            table = schema.tableFor(tableId);
-            if (table == null) {
-                return;
-            }
+            table = getTable(tableId);
+            if (table == null) return;
         }
 
         try {
@@ -237,9 +221,21 @@ class YStreamEventHandler {
                     chunkValues.put(column.name(), YashanDBValueConverters.UNAVAILABLE_VALUE);
                 }
             }
-            Table tableFor = schema.tableFor(tableId);
-            Object[] newValues = truncateTable ? null : YStreamChangeRecordEmitter.getColumnValues(tableFor, record.getYstreamDml().getNewValues(), chunkValues);
-            Object[] oldValues = truncateTable ? null : YStreamChangeRecordEmitter.getColumnValues(tableFor, record.getYstreamDml().getOldValues(), oldChunkValues);
+            Table tableFor;
+            Object[] newValues;
+            Object[] oldValues;
+            try {
+                tableFor = schema.tableFor(tableId);
+                newValues = truncateTable ? null : YStreamChangeRecordEmitter.getColumnValues(tableFor, record.getYstreamDml().getNewValues(), chunkValues);
+                oldValues = truncateTable ? null : YStreamChangeRecordEmitter.getColumnValues(tableFor, record.getYstreamDml().getOldValues(), oldChunkValues);
+            } catch (IllegalStateException e) {
+                LOGGER.warn("Try to read table metadata again to resolve the error when obtaining field values.");
+                printDiffMetadata(record, tableId);
+                schema.getTables().removeTable(tableId);
+                tableFor = getTable(tableId);
+                newValues = YStreamChangeRecordEmitter.getColumnValues(tableFor, record.getYstreamDml().getNewValues(), chunkValues);
+                oldValues = YStreamChangeRecordEmitter.getColumnValues(tableFor, record.getYstreamDml().getOldValues(), oldChunkValues);
+            }
             if (!truncateTable) {
                 YStreamChangeRecordEmitter.calculateColumnValues(oldValues, newValues);
             }
@@ -257,17 +253,52 @@ class YStreamEventHandler {
         } catch (InterruptedException e) {
             throw e;
         } catch (Exception e) {
-            String columnsInSchema = schema.tableFor(tableId).columns().stream().map(Column::name).collect(Collectors.joining(","));
-            String columnsOnTable = record.getYstreamDml().getNewValues().getColumns().stream()
-                    .map(YstreamColumn::getColumn)
-                    .map(com.sics.ystream.metadata.Column::getColumnName)
-                    .collect(Collectors.joining(","));
-            LOGGER.error("Dispatch data change event error,record schema: {}," +
-                    "table: {}," +
-                    "columns in the schema: {}," +
-                    "columns on the table: {}", tableId.schema(), tableId.table(), columnsInSchema, columnsOnTable);
+            printDiffMetadata(record, tableId);
             throw e;
         }
+    }
+
+    private void printDiffMetadata(YStreamDataChangeRecord record, TableId tableId) {
+        String columnsInSchema = schema.tableFor(tableId).columns().stream().map(Column::name).collect(Collectors.joining(","));
+        String columnsOnTable = record.getYstreamDml().getNewValues().getColumns().stream()
+                .map(YstreamColumn::getColumn)
+                .map(com.sics.ystream.metadata.Column::getColumnName)
+                .collect(Collectors.joining(","));
+        LOGGER.error("Dispatch data change event error,record schema: {}," +
+                "table: {}," +
+                "columns in the schema: {}," +
+                "columns on the table: {}", tableId.schema(), tableId.table(), columnsInSchema, columnsOnTable);
+    }
+
+    public Table getTable(TableId tableId) throws InterruptedException {
+        if (!connectorConfig.getTableFilters().dataCollectionFilter().isIncluded(tableId)) {
+            LOGGER.trace("Table {} is new but excluded, schema change skipped.", tableId);
+            return null;
+        }
+
+        LOGGER.warn("Obtaining schema for table {}, which should be already loaded, this may signal potential bug in fetching table schemas.", tableId);
+        final String tableDdl;
+        tableDdl = getTableMetadataDdl(tableId);
+
+        LOGGER.info("Table {} will be captured.", tableId);
+        dispatcher.dispatchSchemaChangeEvent(
+                partition,
+                offsetContext,
+                tableId,
+                new YashanDBSchemaChangeEventEmitter(
+                        connectorConfig,
+                        partition,
+                        offsetContext,
+                        tableId,
+                        tableId.catalog(),
+                        tableId.schema(),
+                        tableDdl,
+                        schema,
+                        Instant.now(),
+                        streamingMetrics,
+                        null));
+
+        return schema.tableFor(tableId);
     }
 
     private void dispatchSchemaChangeEvent(YstreamDdl ddl) throws InterruptedException {
@@ -331,7 +362,9 @@ class YStreamEventHandler {
         // This should have negligible overhead as this should happen rarely.
         try (YashanDBConnection connection = new YashanDBConnection(connectorConfig.getJdbcConfig())) {
             connection.setAutoCommit(false);
-            return connection.getTableMetadataDdl(tableId);
+            String tableMetadataDdl = connection.getTableMetadataDdl(tableId);
+            LOGGER.debug("Obtain table {}.{} ddl: {}", tableId.schema(), tableId.table(), tableMetadataDdl);
+            return tableMetadataDdl;
         } catch (SQLException e) {
             throw new DebeziumException("Failed to get table DDL metadata for: " + tableId, e);
         }

@@ -14,8 +14,11 @@ import io.debezium.connector.yashandb.YashanDBDatabaseSchema;
 import io.debezium.connector.yashandb.YashanDBPartition;
 import io.debezium.data.Envelope.Operation;
 import io.debezium.pipeline.spi.OffsetContext;
+import io.debezium.relational.Column;
 import io.debezium.relational.Table;
 import io.debezium.util.Clock;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.Map;
@@ -27,6 +30,8 @@ import java.util.stream.Collectors;
  * @author Gunnar Morling
  */
 public class YStreamChangeRecordEmitter extends BaseChangeRecordEmitter<YStreamDataChangeRecord> {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(YStreamChangeRecordEmitter.class);
 
     private final YStreamDataChangeRecord record;
 
@@ -71,10 +76,16 @@ public class YStreamChangeRecordEmitter extends BaseChangeRecordEmitter<YStreamD
             List<YstreamColumn> columns = columnValues.getColumns().stream()
                     .filter(ystreamColumn -> !ystreamColumn.getColumn().isDeleted()).collect(Collectors.toList());
             for (YstreamColumn columnValue : columns) {
-                int index = table.columnWithName(columnValue.getColumn().getColumnName()).position() - 1;
                 try {
-                    values[index] = columnValue.getData();
+                    Column column = table.columnWithName(columnValue.getColumn().getColumnName());
+                    if (column != null) {
+                        int index = column.position() - 1;
+                        values[index] = columnValue.getData();
+                    }else {
+                        throw new IllegalStateException("The schema metadata is different from event,maybe NPE");
+                    }
                 } catch (YstreamSqlException e) {
+                    LOGGER.error("convert data error", e);
                     throw new RuntimeException("convert data error", e);
                 }
             }

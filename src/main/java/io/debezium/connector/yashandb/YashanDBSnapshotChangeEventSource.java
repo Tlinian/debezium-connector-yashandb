@@ -192,21 +192,20 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
                                                RelationalSnapshotContext<YashanDBPartition, YashanDBOffsetContext> snapshotContext)
             throws SQLException, InterruptedException {
         if (connectorConfig.getSnapshotLockingMode().usesLocking()) {
-//            LOGGER.info(" yashandb not support lock table");
-            // ((YashanDBOffsetContext) snapshotContext).preSchemaSnapshotSavepoint = jdbcConnection.connection().setSavepoint("dbz_schema_snapshot");
-            //
-            // try (Statement statement = jdbcConnection.connection().createStatement()) {
-            // for (TableId tableId : snapshotContext.capturedTables) {
-            // if (!sourceContext.isRunning()) {
-            // throw new InterruptedException("Interrupted while locking table " + tableId);
-            // }
-            //
-            // LOGGER.debug("Locking table {}", tableId);
-            // statement.execute("LOCK TABLE " + quote(tableId) + " IN ROW SHARE MODE");
-            // }
-            // }
-        }
-        else {
+            LOGGER.info("Enable snapshot lock captured tables");
+            ((YashanDBSnapshotContext) snapshotContext).preSchemaSnapshotSavepoint = jdbcConnection.connection().setSavepoint("dbz_schema_snapshot");
+
+            try (Statement statement = jdbcConnection.connection().createStatement()) {
+                for (TableId tableId : snapshotContext.capturedTables) {
+                    if (!sourceContext.isRunning()) {
+                        throw new InterruptedException("Interrupted while locking table " + tableId);
+                    }
+
+                    LOGGER.debug("Locking table {}", tableId);
+                    statement.execute("LOCK TABLE " + quote(tableId) + " IN SHARE MODE");
+                }
+            }
+        } else {
             LOGGER.info("Schema locking was disabled in connector configuration");
         }
     }
@@ -215,7 +214,8 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
     protected void releaseSchemaSnapshotLocks(RelationalSnapshotContext<YashanDBPartition, YashanDBOffsetContext> snapshotContext)
             throws SQLException {
         if (connectorConfig.getSnapshotLockingMode().usesLocking()) {
-            // jdbcConnection.connection().rollback(((OracleSnapshotContext) snapshotContext).preSchemaSnapshotSavepoint);
+            // release table lock
+            jdbcConnection.connection().rollback(((YashanDBSnapshotContext) snapshotContext).preSchemaSnapshotSavepoint);
         }
     }
 
@@ -1305,7 +1305,7 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
 
         for(TableId tableId : snapshottedTableIds) {
             if (this.connectorConfig.getTableFilters().dataCollectionFilter().isIncluded(tableId)) {
-                LOGGER.trace("Adding table {} to the list of captured tables for which the data will be snapshotted", tableId);
+                LOGGER.info("Adding table {} to the list of captured tables for which the data will be snapshotted", tableId);
                 capturedTables.add(tableId);
             } else {
                 LOGGER.trace("Ignoring table {} for data snapshotting as it's not included in the filter configuration", tableId);
