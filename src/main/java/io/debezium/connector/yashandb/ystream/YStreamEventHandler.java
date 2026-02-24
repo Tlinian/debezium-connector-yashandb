@@ -378,7 +378,7 @@ class YStreamEventHandler {
         if (message == null) {
             return;
         }
-        LOGGER.debug("Recording offsets to Oracle");
+        LOGGER.debug("Recording offsets to YashanDB");
         if (message.position != null) {
             if (LOGGER.isDebugEnabled()) {
                 LOGGER.debug("Recording position {}", message.position);
