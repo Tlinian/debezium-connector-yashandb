@@ -33,9 +33,9 @@ public final class SnapshotSQLConstants {
 
     public static final String QUERY_PARTITION_ROW_ID_SQL = "WITH BASE AS (\n"
             + "     SELECT OWNER,SEGMENT_NAME AS TABLE_NAME,PARTITION_NAME FROM DBA_SEGMENTS\n"
-            + "     WHERE OWNER = %s AND SEGMENT_NAME = %s\n"
+            + "     WHERE OWNER = '%s' AND SEGMENT_NAME = '%s'\n"
             + "     -- only can get from DBA_SEGMENTS use table partition name or table subpartition Name\n"
-            + "     AND PARTITION_NAME IN (%s)\n"
+            + "     AND PARTITION_NAME IN ('%s')\n"
             + "),\n"
             + "-- select part all DATA_OBJECT_ID AS OID\n"
             + "OBJ AS (\n"
