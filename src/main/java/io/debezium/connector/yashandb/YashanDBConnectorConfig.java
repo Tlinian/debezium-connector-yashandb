@@ -523,6 +523,22 @@ public class YashanDBConnectorConfig extends HistorizedRelationalDatabaseConnect
                     "The maximum time (in seconds) that the YStream server can wait for a response from the YStream client,"
                             + " with a default value of 60.");
 
+    public static final Field LOGIC_SHARD_ENABLED = Field.create("logic.shard.enabled")
+            .withType(Type.BOOLEAN)
+            .withWidth(Width.MEDIUM)
+            .withImportance(Importance.LOW)
+            .withDefault(false)
+            .withDescription(
+                    "Whether to enable logical sharding,default enabled.");
+
+    public static final Field TABLE_READ_THREADS = Field.create("table.read.threads")
+            .withType(Type.INT)
+            .withWidth(Width.MEDIUM)
+            .withImportance(Importance.LOW)
+            .withDefault(1)
+            .withDescription(
+                    "Number of read threads per table.Default 1 thread.");
+
     private static final ConfigDefinition CONFIG_DEFINITION = HistorizedRelationalDatabaseConnectorConfig.CONFIG_DEFINITION.edit()
             .name("YashanDB")
             .excluding(
@@ -547,6 +563,8 @@ public class YashanDBConnectorConfig extends HistorizedRelationalDatabaseConnect
                     YSTREAM_CLIENT_RESPONSE_TIMEOUT,
                     YSTREAM_POLL_TIMEOUT,
                     YSTREAM_QUEUE_SIZE,
+                    LOGIC_SHARD_ENABLED,
+                    TABLE_READ_THREADS,
                     LOG_MINING_ARCHIVE_LOG_HOURS,
                     LOG_MINING_BATCH_SIZE_DEFAULT,
                     LOG_MINING_BATCH_SIZE_MIN,
@@ -645,6 +663,8 @@ public class YashanDBConnectorConfig extends HistorizedRelationalDatabaseConnect
     private final int yStreamQueueSize;
     private final int yStreamPollTimeout;
     private final int yStreamClientResponseTimeout;
+    private final Boolean logicShardEnabled;
+    private final int tableReadThreads;
 
     public YashanDBConnectorConfig(Configuration config) {
         super(
@@ -700,6 +720,10 @@ public class YashanDBConnectorConfig extends HistorizedRelationalDatabaseConnect
         this.yStreamPollTimeout = config.getInteger(YSTREAM_POLL_TIMEOUT);
         this.yStreamQueueSize = config.getInteger(YSTREAM_QUEUE_SIZE);
         this.yStreamClientResponseTimeout = config.getInteger(YSTREAM_CLIENT_RESPONSE_TIMEOUT);
+
+        // Shard
+        this.logicShardEnabled = config.getBoolean(LOGIC_SHARD_ENABLED);
+        this.tableReadThreads = config.getInteger(TABLE_READ_THREADS);
     }
 
     private static String toUpperCase(String property) {
@@ -740,6 +764,14 @@ public class YashanDBConnectorConfig extends HistorizedRelationalDatabaseConnect
 
     public int getyStreamClientResponseTimeout() {
         return yStreamClientResponseTimeout;
+    }
+
+    public Boolean getLogicShardEnabled() {
+        return logicShardEnabled;
+    }
+
+    public int getTableReadThreads() {
+        return tableReadThreads;
     }
 
     @Override
@@ -800,7 +832,7 @@ public class YashanDBConnectorConfig extends HistorizedRelationalDatabaseConnect
         /**
          * Convert mode name into the logical value
          *
-         * @param value the configuration property value ; may not be null
+         * @param value        the configuration property value ; may not be null
          * @param defaultValue the default value ; may be null
          * @return the matching option or null if the match is not found and non-null default is invalid
          */
@@ -909,7 +941,7 @@ public class YashanDBConnectorConfig extends HistorizedRelationalDatabaseConnect
         /**
          * Determine if the supplied value is one of the predefined options.
          *
-         * @param value the configuration property value; may not be null
+         * @param value        the configuration property value; may not be null
          * @param defaultValue the default value; may be null
          * @return the matching option, or null if no match is found and the non-null default is invalid
          */
@@ -974,7 +1006,7 @@ public class YashanDBConnectorConfig extends HistorizedRelationalDatabaseConnect
         /**
          * Determine if the supplied value is one of the predefined options.
          *
-         * @param value the configuration property value; may not be {@code null}
+         * @param value        the configuration property value; may not be {@code null}
          * @param defaultValue the default value; may be {@code null}
          * @return the matching option, or null if no match is found and the non-null default is invalid
          */
@@ -1048,7 +1080,7 @@ public class YashanDBConnectorConfig extends HistorizedRelationalDatabaseConnect
         /**
          * Determine if the supplied value is one of the predefined options.
          *
-         * @param value the configuration property value; may not be {@code null}
+         * @param value        the configuration property value; may not be {@code null}
          * @param defaultValue the default value; may be {@code null}
          * @return the matching option, or null if no match is found and the non-null default is invalid
          */
@@ -1131,7 +1163,7 @@ public class YashanDBConnectorConfig extends HistorizedRelationalDatabaseConnect
          * This filter mode adds predicates to the LogMiner query, using standard SQL in-clause
          * semantics. This mode expects that the include/exclude connector properties specify
          * schemas and tables without regular expressions.
-         *
+         * <p>
          * This option may be the best performing option when there is substantially more data in
          * the redo logs compared to the data wanting to be captured at the trade-off that the
          * connector configuration is a bit more verbose with include/exclude filters.
@@ -1142,7 +1174,7 @@ public class YashanDBConnectorConfig extends HistorizedRelationalDatabaseConnect
          * This filter mode adds predicates to the LogMiner query, using the Oracle REGEXP_LIKE
          * operator. This mode supports the include/exclude connector properties specifying
          * regular expressions.
-         *
+         * <p>
          * For the best performance, it's generally a good idea to limit the number of REGEXP_LIKE
          * operators in the query as it's treated similar to the LIKE operator which often does
          * not perform well on large data sets. The number of REGEXP_LIKE operators can be reduced
