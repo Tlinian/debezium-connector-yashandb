@@ -38,6 +38,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
 /**
@@ -52,6 +53,8 @@ public class TableDataSyncTask implements Runnable {
     private final ThreadPoolExecutor executor;
     private final Queue<YashanDBOffsetContext> offsets;
     private final EventDispatcher.SnapshotReceiver<YashanDBPartition> snapshotReceiver;
+
+    private final AtomicLong blockSendTime = new AtomicLong(0L);
 
     public TableDataSyncTask(TableId tableId, SnapshotDataSyncTask.SyncTaskContext syncTaskContext,
                              Queue<YashanDBOffsetContext> offsets, EventDispatcher.SnapshotReceiver<YashanDBPartition> snapshotReceiver) {
@@ -76,10 +79,10 @@ public class TableDataSyncTask implements Runnable {
             int subShardCnt = sqlList.size();
             final CountDownLatch subLatch = new CountDownLatch(subShardCnt);
             for (String sql : sqlList) {
-                executor.execute(new SyncWorker(syncTaskContext, subLatch, sql, tableId, offsets, snapshotReceiver));
+                executor.execute(new SyncWorker(syncTaskContext, subLatch, sql, tableId, offsets, snapshotReceiver, blockSendTime));
             }
             subLatch.await();
-            log.info("Table {} sync finished", tableId);
+            log.info("Table {} sync finished and has been blocked for {} (s)", tableId, blockSendTime.get() / 1000);
         } catch (Exception e) {
             log.error("Table {} sync error", tableId.toString(), e);
             syncTaskContext.getErrorTables().add(tableId.toString());
@@ -175,15 +178,19 @@ public class TableDataSyncTask implements Runnable {
         private final Queue<YashanDBOffsetContext> offsets;
         private final EventDispatcher.SnapshotReceiver<YashanDBPartition> snapshotReceiver;
 
+        private final AtomicLong blockSendTime;
+
         private SyncWorker(SnapshotDataSyncTask.SyncTaskContext syncTaskContext, CountDownLatch subLatch,
                            String sql, TableId tableId, Queue<YashanDBOffsetContext> offsets,
-                           EventDispatcher.SnapshotReceiver<YashanDBPartition> snapshotReceiver) {
+                           EventDispatcher.SnapshotReceiver<YashanDBPartition> snapshotReceiver,
+                           AtomicLong blockSendTime) {
             this.syncTaskContext = syncTaskContext;
             this.subLatch = subLatch;
             this.sql = sql;
             this.tableId = tableId;
             this.offsets = offsets;
             this.snapshotReceiver = snapshotReceiver;
+            this.blockSendTime = blockSendTime;
         }
 
         @Override
@@ -226,12 +233,15 @@ public class TableDataSyncTask implements Runnable {
                                     if (logTimer.expired()) {
                                         long stop = clock.currentTimeInMillis();
                                         log.info("\t Processes {} : Exported {} records for table '{}' after {}", Thread.currentThread().getName(), rows, table.id(), Strings.duration(stop - exportStart));
+                                        log.info("\t Processes {} : Sender has been blocked for {} (s).", Thread.currentThread().getName(), blockSendTime.get() / 1000);
                                         eventSource.snapshotProgressListener.rowsScanned(partition, table.id(), rows);
                                         logTimer = eventSource.YaShanGetTableScanLogTimer();
                                     }
                                     hasNext = rs.next();
                                     markState(offset, subLatch.getCount() == 1, !hasNext);
+                                    long start = System.currentTimeMillis();
                                     eventSource.dispatcher.dispatchSnapshotEvent(partition, table.id(), eventSource.getChangeRecordEmitter(partition, offset, table.id(), row, sourceTableSnapshotTimestamp), snapshotReceiver);
+                                    blockSendTime.addAndGet(System.currentTimeMillis() - start);
                                 }
                             } else {
                                 markState(offset, subLatch.getCount() == 1, true);

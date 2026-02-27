@@ -1824,14 +1824,19 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
     public RowIds getRowIdsByView(String sql) throws SQLException {
         JdbcConnection connection = this.connectionPool.poll();
         try {
-            assert connection != null;
-            Statement statement = this.readTableStatement(connection, OptionalLong.empty());
-            try (final ResultSet rs = statement.executeQuery(sql)) {
+            JdbcConnection validConnection = connection == null ? this.jdbcConnection : connection;
+            try (Statement statement = this.readTableStatement(validConnection, OptionalLong.empty());
+                 ResultSet rs = statement.executeQuery(sql)) {
                 if (rs.next()) {
                     String min = rs.getString("MIN_ROWID");
                     String max = rs.getString("MAX_ROWID");
                     return new RowIds(min, max);
                 }
+            }
+            return null;
+        } finally {
+            if (connection != null) {
+                this.connectionPool.add(connection);
             }
             return null;
         } finally {
