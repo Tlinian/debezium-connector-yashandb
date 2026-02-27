@@ -412,6 +412,10 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
         }*/ catch (SQLException e) {
             LOGGER.error("Error during get minRowid and maxRowid");
             throw e;
+        } catch (NumberFormatException e) {
+            LOGGER.warn("Rowid set null continue:{}", e.getMessage());
+            table.setMinValue(null);
+            table.setMaxValue(null);
         }
     }
 
@@ -518,6 +522,9 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
             }
         } catch (SQLException e) {
             throw new RuntimeException("Failed to query partition rowid for " + objectInfo, e);
+        } catch (NumberFormatException e) {
+            LOGGER.warn("Rowid set null continue:{}", e.getMessage());
+            res.add(new YaShanPartitionSplitRecord(objectInfo, rowid.partitionName(), null, null));
         } /*finally {
             if (conn2 != null) {
                 connectionPool.add(conn2); //回收
@@ -1815,15 +1822,21 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
     }
 
     public RowIds getRowIdsByView(String sql) throws SQLException {
-        Statement statement = this.readTableStatement(this.jdbcConnection, OptionalLong.empty());
-        try (final ResultSet rs = statement.executeQuery(sql)) {
-            if (rs.next()) {
-                String min = rs.getString("MIN_ROWID");
-                String max = rs.getString("MAX_ROWID");
-                return new RowIds(min, max);
+        JdbcConnection connection = this.connectionPool.poll();
+        try {
+            assert connection != null;
+            Statement statement = this.readTableStatement(connection, OptionalLong.empty());
+            try (final ResultSet rs = statement.executeQuery(sql)) {
+                if (rs.next()) {
+                    String min = rs.getString("MIN_ROWID");
+                    String max = rs.getString("MAX_ROWID");
+                    return new RowIds(min, max);
+                }
             }
+            return null;
+        } finally {
+            this.connectionPool.add(connection);
         }
-        return null;
     }
 
     public static class RowIds {
