@@ -1838,9 +1838,6 @@ public class YashanDBSnapshotChangeEventSource extends RelationalSnapshotChangeE
             if (connection != null) {
                 this.connectionPool.add(connection);
             }
-            return null;
-        } finally {
-            this.connectionPool.add(connection);
         }
     }
 
