@@ -35,10 +35,7 @@ import org.slf4j.LoggerFactory;
 
 import java.sql.SQLException;
 import java.time.Instant;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -237,7 +234,13 @@ class YStreamEventHandler {
                 oldValues = YStreamChangeRecordEmitter.getColumnValues(tableFor, record.getYstreamDml().getOldValues(), oldChunkValues);
             }
             if (!truncateTable) {
-                YStreamChangeRecordEmitter.calculateColumnValues(oldValues, newValues);
+                //获取被修改的字段名称
+                Set<String> columnNamesPresentInAfter = record.getYstreamDml().getNewValues().getColumns().stream()
+                        .filter(ystreamColumn -> !ystreamColumn.getColumn().isDeleted())
+                        .map(ystreamColumn -> ystreamColumn.getColumn().getColumnName())
+                        .collect(Collectors.toSet());
+                YStreamChangeRecordEmitter.calculateColumnValues(oldValues, newValues, columnNamesPresentInAfter, tableFor);
+                //YStreamChangeRecordEmitter.calculateColumnValues(oldValues, newValues);
             }
             dispatcher.dispatchDataChangeEvent(
                     partition,

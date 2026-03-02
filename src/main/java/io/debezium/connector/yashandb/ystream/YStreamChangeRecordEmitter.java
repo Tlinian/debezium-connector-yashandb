@@ -22,6 +22,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -60,12 +61,46 @@ public class YStreamChangeRecordEmitter extends BaseChangeRecordEmitter<YStreamD
             }
         }
     }
-
+    /*
     public static void calculateColumnValues(Object[] oldValues, Object[] newValues) {
         // calculate values
         for (int i = 0; i < oldValues.length; i++) {
             if (oldValues[i] != null && newValues[i] == null) {
                 newValues[i] = oldValues[i];
+            }
+        }
+    }*/
+    /**
+     * For UPDATE: YStream sends only changed columns in after (new values). Unchanged columns are absent (null in array).
+     * Columns explicitly set to NULL are present in after with value null. We must only fill from old when the column
+     * is absent from after; otherwise "update to NULL" would wrongly show the old value.
+     *
+     * @param oldValues                  before state (full row except non-modified LOB)
+     * @param newValues                  after state (only updated columns have values; rest are null)
+     * @param columnNamesPresentInAfter  set of column names that appear in the after payload (getNewValues().getColumns())
+     * @param table                      table metadata to map index to column name
+     */
+    public static void calculateColumnValues(Object[] oldValues, Object[] newValues,
+                                             Set<String> columnNamesPresentInAfter, Table table) {
+        if (columnNamesPresentInAfter == null || table == null) {
+            for (int i = 0; i < oldValues.length; i++) {
+                if (oldValues[i] != null && newValues[i] == null) {
+                    newValues[i] = oldValues[i];
+                }
+            }
+            return;
+        }
+        for (Column column : table.columns()) {
+            int index = column.position() - 1;
+            if (index < 0 || index >= oldValues.length) {
+                continue;
+            }
+            //针对被修改的字段，如果原有的值不为null，修改之后的值为null的时候，新的值不在赋值为原有的值。
+            if (columnNamesPresentInAfter.contains(column.name())) {
+                continue;
+            }
+            if (oldValues[index] != null && newValues[index] == null) {
+                newValues[index] = oldValues[index];
             }
         }
     }
