@@ -210,7 +210,9 @@ public class YashanDBOffsetContext extends CommonOffsetContext<SourceInfo> {
             offset.put(SourceInfo.GROUP_LSN_KEY, recoverPosition.getLogPosition().getGroupLsn());
             offset.put(SourceInfo.GROUP_OFFSET_KEY, recoverPosition.getLogPosition().getGroupOffset());
             offset.put(SourceInfo.BATCH_ROW_ID_KEY, recoverPosition.getLogPosition().getBatchRowId());
-            offset.put(SourceInfo.INSTANCE_ID_KEY, String.valueOf(recoverPosition.getLogPosition().getInstanceId()));
+            byte[] bytes = new byte[8];
+            bytes[0] = recoverPosition.getLogPosition().getInstanceId();
+            offset.put(SourceInfo.INSTANCE_ID_KEY, bytes);
 
             return offset;
         } else {
@@ -230,7 +232,9 @@ public class YashanDBOffsetContext extends CommonOffsetContext<SourceInfo> {
                 offset.put(SourceInfo.POSITION_SCN_KEY, recoverPosition.getCommitScn().getScn());
                 offset.put(SourceInfo.GROUP_LSN_KEY, recoverPosition.getLogPosition().getGroupLsn());
                 offset.put(SourceInfo.GROUP_OFFSET_KEY, recoverPosition.getLogPosition().getGroupOffset());
-                offset.put(SourceInfo.INSTANCE_ID_KEY, String.valueOf(recoverPosition.getLogPosition().getInstanceId()));
+                byte[] bytes = new byte[8];
+                bytes[0] = recoverPosition.getLogPosition().getInstanceId();
+                offset.put(SourceInfo.INSTANCE_ID_KEY, bytes);
                 offset.put(SourceInfo.BATCH_ROW_ID_KEY, recoverPosition.getLogPosition().getBatchRowId());
             }
             if (snapshotPendingTransactions != null && !snapshotPendingTransactions.isEmpty()) {
@@ -453,21 +457,27 @@ public class YashanDBOffsetContext extends CommonOffsetContext<SourceInfo> {
 
     public static Position loadRecoverPosition(Map<String, ?> offset) {
         Object scn = offset.get(SourceInfo.POSITION_SCN_KEY);
-        String instanceId = String.valueOf(offset.get(SourceInfo.INSTANCE_ID_KEY));
+        Object instance = offset.get(SourceInfo.INSTANCE_ID_KEY);
+        byte[] instanceId;
+        if (instance instanceof String) {
+            instanceId = Base64.getDecoder().decode((String) instance);
+        } else {
+            instanceId = (byte[]) instance;
+        }
         Object groupLsn = offset.get(SourceInfo.GROUP_LSN_KEY);
         Object groupOffset = offset.get(SourceInfo.GROUP_OFFSET_KEY);
         Object batchRowId = offset.get(SourceInfo.BATCH_ROW_ID_KEY);
         if (scn instanceof String) {
             return new Position(new SystemChangeNumber(Long.parseLong((String) scn)),
-                    new LogPosition(Byte.parseByte(instanceId), (Long) groupLsn, (Integer) groupOffset, (Integer) batchRowId));
+                    new LogPosition(instanceId[0], (Long) groupLsn, (Integer) groupOffset, (Integer) batchRowId));
         } else if (scn instanceof Long) {
             if (groupOffset instanceof Long) {
                 return new Position(new SystemChangeNumber((Long) scn),
-                        new LogPosition(Byte.parseByte(instanceId), (Long) groupLsn, Math.toIntExact((Long) groupOffset), Math.toIntExact((Long) batchRowId)));
+                        new LogPosition(instanceId[0], (Long) groupLsn, Math.toIntExact((Long) groupOffset), Math.toIntExact((Long) batchRowId)));
             }
-            return new Position(new SystemChangeNumber((Long) scn), new LogPosition(Byte.parseByte(instanceId), (Long) groupLsn, (Integer) groupOffset, (Integer) batchRowId));
+            return new Position(new SystemChangeNumber((Long) scn), new LogPosition(instanceId[0], (Long) groupLsn, (Integer) groupOffset, (Integer) batchRowId));
         } else if (scn instanceof Integer) {
-            return new Position(new SystemChangeNumber((Integer) scn), new LogPosition(Byte.parseByte(instanceId), (Long) groupLsn, (Integer) groupOffset, (Integer) batchRowId));
+            return new Position(new SystemChangeNumber((Integer) scn), new LogPosition(instanceId[0], (Long) groupLsn, (Integer) groupOffset, (Integer) batchRowId));
 
         } else {
             return null;

@@ -80,11 +80,18 @@ public class YStreamAdapter extends AbstractStreamingAdapter {
 
     private static YStreamPosition documentToPosition(Document document) {
         long scn = document.getLong(SourceInfo.POSITION_SCN_KEY);
-        String instanceId = document.getString(SourceInfo.INSTANCE_ID_KEY);
+        String instance = document.getString(SourceInfo.INSTANCE_ID_KEY);
+        byte[] instanceId;
+        if (instance == null) {
+            instanceId = document.getBytes(SourceInfo.INSTANCE_ID_KEY);
+        }
+        else {
+            instanceId = Base64.getDecoder().decode(instance);
+        }
         long groupLsn = document.getLong(SourceInfo.GROUP_LSN_KEY);
         int groupOffset = document.getInteger(SourceInfo.GROUP_OFFSET_KEY);
         int batchRowId = document.getInteger(SourceInfo.BATCH_ROW_ID_KEY);
-        return new YStreamPosition(new Position(new SystemChangeNumber(scn), new LogPosition(Byte.parseByte(instanceId), groupLsn, groupOffset, batchRowId)));
+        return new YStreamPosition(new Position(new SystemChangeNumber(scn), new LogPosition(instanceId[0], groupLsn, groupOffset, batchRowId)));
     }
 
     @Override
@@ -143,6 +150,8 @@ public class YStreamAdapter extends AbstractStreamingAdapter {
             currentScn1 = connection.getCurrentScn();
         } while (areSameTimestamp(latestTableDdlScn.orElse(null), currentScn1, connection));
         Scn flashPointScn;
+        Scn oldTransactionStartScn1 = connection.queryOldTransactionStartScn();
+        Scn oldTransactionStartScn2 = connection.queryOldTransactionStartScn();
         try {
             TimeUnit.SECONDS.sleep(3);
         }
@@ -162,7 +171,7 @@ public class YStreamAdapter extends AbstractStreamingAdapter {
 
         return YashanDBOffsetContext.create()
                 .logicalName(connectorConfig)
-                .ystreamStartScn(currentScn1)
+                .ystreamStartScn(calculateEarliestActiveTxnScn(currentScn1, oldTransactionStartScn1, oldTransactionStartScn2))
                 .recoverPosition(position)
                 .scn(flashPointScn)
                 .snapshotScn(flashPointScn)
