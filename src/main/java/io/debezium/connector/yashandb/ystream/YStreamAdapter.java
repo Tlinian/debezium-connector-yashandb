@@ -84,7 +84,22 @@ public class YStreamAdapter extends AbstractStreamingAdapter {
         long groupLsn = document.getLong(SourceInfo.GROUP_LSN_KEY);
         int groupOffset = document.getInteger(SourceInfo.GROUP_OFFSET_KEY);
         int batchRowId = document.getInteger(SourceInfo.BATCH_ROW_ID_KEY);
-        return new YStreamPosition(new Position(new SystemChangeNumber(scn), new LogPosition(Byte.parseByte(instanceId), groupLsn, groupOffset, batchRowId)));
+        if (isDigit(instanceId)) {
+            return new YStreamPosition(new Position(new SystemChangeNumber(scn), new LogPosition(Byte.parseByte(instanceId), groupLsn, groupOffset, batchRowId)));
+        } else {
+            // 兼容旧数据 AAAAAAA=
+            byte[] instanceIdBytes = Base64.getDecoder().decode(instanceId);
+            return new YStreamPosition(new Position(new SystemChangeNumber(scn), new LogPosition(instanceIdBytes[0], groupLsn, groupOffset, batchRowId)));
+        }
+    }
+
+    private static boolean isDigit(String s){
+        for (char c : s.toCharArray()) {
+            if(!Character.isDigit(c)){
+                return false;
+            }
+        }
+        return true;
     }
 
     @Override
