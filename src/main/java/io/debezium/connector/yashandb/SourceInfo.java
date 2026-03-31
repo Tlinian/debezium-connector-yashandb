@@ -49,7 +49,7 @@ public class SourceInfo extends BaseSourceInfo {
 
     // YStream position
     private long positionScn;
-    private byte[] instanceId;
+    private String instanceId;
     private long groupLsn;
     private int groupOffset;
     private int batchRowId;
@@ -83,14 +83,14 @@ public class SourceInfo extends BaseSourceInfo {
     }
 
     public Position getLcrPosition() {
-        return new Position(new SystemChangeNumber(positionScn), new LogPosition(instanceId[0], groupLsn, groupOffset, batchRowId));
+        return new Position(new SystemChangeNumber(positionScn), new LogPosition(Byte.parseByte(instanceId), groupLsn, groupOffset, batchRowId));
     }
 
     public long getPositionScn() {
         return positionScn;
     }
 
-    public byte[] getInstanceId() {
+    public String getInstanceId() {
         return instanceId;
     }
 
@@ -110,9 +110,7 @@ public class SourceInfo extends BaseSourceInfo {
         this.positionScn = lcrPosition.getCommitScn().getScn();
         this.batchRowId = lcrPosition.getLogPosition().getBatchRowId();
         this.groupLsn = lcrPosition.getLogPosition().getGroupLsn();
-        byte[] bytes = new byte[8];
-        bytes[0] = lcrPosition.getLogPosition().getInstanceId();
-        this.instanceId = bytes;
+        this.instanceId = String.valueOf(lcrPosition.getLogPosition().getInstanceId());
         this.groupOffset = lcrPosition.getLogPosition().getGroupOffset();
     }
 
