@@ -29,7 +29,7 @@ public class YashanDBSourceInfoStructMaker extends AbstractSourceInfoStructMaker
                 .field(SourceInfo.POSITION_SCN_KEY, Schema.OPTIONAL_INT64_SCHEMA)
                 .field(SourceInfo.GROUP_LSN_KEY, Schema.OPTIONAL_INT64_SCHEMA)
                 .field(SourceInfo.GROUP_OFFSET_KEY, Schema.OPTIONAL_INT32_SCHEMA)
-                .field(SourceInfo.INSTANCE_ID_KEY, Schema.OPTIONAL_BYTES_SCHEMA)
+                .field(SourceInfo.INSTANCE_ID_KEY, Schema.STRING_SCHEMA)
                 .field(CommitScn.ROLLBACK_SEGMENT_ID_KEY, Schema.OPTIONAL_STRING_SCHEMA)
                 .field(CommitScn.SQL_SEQUENCE_NUMBER_KEY, Schema.OPTIONAL_INT64_SCHEMA))
                 .field(SourceInfo.USERNAME_KEY, Schema.OPTIONAL_STRING_SCHEMA).build();
