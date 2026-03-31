@@ -49,9 +49,7 @@ public class TimestampToStringConverter implements CustomConverter<SchemaBuilder
 
     @Override
     public void converterFor(RelationalColumn field, ConverterRegistration<SchemaBuilder> registration) {
-        //兼容yashandb23.4.7.1版本之后的TIMESTAMP(0)~TIMESTAMP(6)类型
-        final String typeName = field.typeName();
-        if (typeName == null || !typeName.toUpperCase().startsWith("TIMESTAMP") || !selector.test(field)) {
+        if (!"TIMESTAMP".equalsIgnoreCase(field.typeName()) || !selector.test(field)) {
             return;
         }
         registration.register(SchemaBuilder.string(), x -> {
