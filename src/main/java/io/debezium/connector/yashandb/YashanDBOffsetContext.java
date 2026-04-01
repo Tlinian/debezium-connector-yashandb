@@ -457,20 +457,38 @@ public class YashanDBOffsetContext extends CommonOffsetContext<SourceInfo> {
         Object groupLsn = offset.get(SourceInfo.GROUP_LSN_KEY);
         Object groupOffset = offset.get(SourceInfo.GROUP_OFFSET_KEY);
         Object batchRowId = offset.get(SourceInfo.BATCH_ROW_ID_KEY);
+
+        byte instanceIdB;
+        if (isDigit(instanceId)) {
+            instanceIdB = Byte.parseByte(instanceId);
+        } else {
+            // 兼容旧数据 AAAAAAA=
+            byte[] instanceIdBytes = Base64.getDecoder().decode(instanceId);
+            instanceIdB = instanceIdBytes[0];
+        }
         if (scn instanceof String) {
             return new Position(new SystemChangeNumber(Long.parseLong((String) scn)),
-                    new LogPosition(Byte.parseByte(instanceId), (Long) groupLsn, (Integer) groupOffset, (Integer) batchRowId));
+                    new LogPosition(instanceIdB, (Long) groupLsn, (Integer) groupOffset, (Integer) batchRowId));
         } else if (scn instanceof Long) {
             if (groupOffset instanceof Long) {
                 return new Position(new SystemChangeNumber((Long) scn),
-                        new LogPosition(Byte.parseByte(instanceId), (Long) groupLsn, Math.toIntExact((Long) groupOffset), Math.toIntExact((Long) batchRowId)));
+                        new LogPosition(instanceIdB, (Long) groupLsn, Math.toIntExact((Long) groupOffset), Math.toIntExact((Long) batchRowId)));
             }
-            return new Position(new SystemChangeNumber((Long) scn), new LogPosition(Byte.parseByte(instanceId), (Long) groupLsn, (Integer) groupOffset, (Integer) batchRowId));
+            return new Position(new SystemChangeNumber((Long) scn), new LogPosition(instanceIdB, (Long) groupLsn, (Integer) groupOffset, (Integer) batchRowId));
         } else if (scn instanceof Integer) {
-            return new Position(new SystemChangeNumber((Integer) scn), new LogPosition(Byte.parseByte(instanceId), (Long) groupLsn, (Integer) groupOffset, (Integer) batchRowId));
+            return new Position(new SystemChangeNumber((Integer) scn), new LogPosition(instanceIdB, (Long) groupLsn, (Integer) groupOffset, (Integer) batchRowId));
 
         } else {
             return null;
         }
+    }
+
+    private static boolean isDigit(String s){
+        for (char c : s.toCharArray()) {
+            if(!Character.isDigit(c)){
+                return false;
+            }
+        }
+        return true;
     }
 }
