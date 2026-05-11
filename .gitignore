@@ -22,3 +22,15 @@
 # virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
 hs_err_pid*
 replay_pid*
+
+# Antlr4 generated files
+src/main/java/io/debezium/connector/yashandb/ddl/parser/gen/
+*.interp
+*.tokens
+
+# Maven build output
+target/
+
+# IDE files
+.idea/
+*.iml
