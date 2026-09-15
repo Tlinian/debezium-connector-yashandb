@@ -127,6 +127,18 @@ class YashanDBConnectorConfigConstantsTest {
     }
 
     @Test
+    void shouldHaveYstreamFaultToleranceField() {
+        assertThat(YashanDBConnectorConfig.YSTREAM_FAULT_TOLERANCE).isNotNull();
+        assertThat(YashanDBConnectorConfig.YSTREAM_FAULT_TOLERANCE.name()).isEqualTo("ystream.fault.tolerance");
+    }
+
+    @Test
+    void shouldHaveYstreamAdditionalPropertiesField() {
+        assertThat(YashanDBConnectorConfig.YSTREAM_ADDITIONAL_PROPERTIES).isNotNull();
+        assertThat(YashanDBConnectorConfig.YSTREAM_ADDITIONAL_PROPERTIES.name()).isEqualTo("ystream.additional.properties");
+    }
+
+    @Test
     void shouldHaveLogicShardEnabledField() {
         assertThat(YashanDBConnectorConfig.LOGIC_SHARD_ENABLED).isNotNull();
         assertThat(YashanDBConnectorConfig.LOGIC_SHARD_ENABLED.name()).isEqualTo("logic.shard.enabled");

@@ -524,6 +524,28 @@ public class YashanDBConnectorConfig extends HistorizedRelationalDatabaseConnect
                     "The maximum time (in seconds) that the YStream server can wait for a response from the YStream client,"
                             + " with a default value of 60.");
 
+    public static final Field YSTREAM_FAULT_TOLERANCE = Field.create("ystream.fault.tolerance")
+            .withDisplayName("YashanDB YStream fault tolerance")
+            .withType(Type.BOOLEAN)
+            .withWidth(Width.MEDIUM)
+            .withImportance(Importance.LOW)
+            .withDefault(false)
+            .withDescription("Whether the YStream client should enable fault-tolerant processing.");
+
+    /**
+     * Additional YStream builder options. Entries use the form {@code option.name=value}; the option name is mapped to
+     * the corresponding YStream builder setter (for example, {@code enable.sequence.next.val=true} maps to
+     * {@code setEnableSequenceNextVal(true)}). This keeps connector code independent from new YStream builder options.
+     */
+    public static final Field YSTREAM_ADDITIONAL_PROPERTIES = Field.create("ystream.additional.properties")
+            .withDisplayName("Additional YStream options")
+            .withType(Type.LIST)
+            .withWidth(Width.LONG)
+            .withImportance(Importance.LOW)
+            .withDefault("")
+            .withDescription("Additional YStream builder options as comma-separated name=value entries. Explicit connector "
+                    + "settings take precedence when the same option is configured in both places.");
+
     public static final Field LOGIC_SHARD_ENABLED = Field.create("logic.shard.enabled")
             .withType(Type.BOOLEAN)
             .withWidth(Width.MEDIUM)
@@ -564,6 +586,8 @@ public class YashanDBConnectorConfig extends HistorizedRelationalDatabaseConnect
                     YSTREAM_CLIENT_RESPONSE_TIMEOUT,
                     YSTREAM_POLL_TIMEOUT,
                     YSTREAM_QUEUE_SIZE,
+                    YSTREAM_FAULT_TOLERANCE,
+                    YSTREAM_ADDITIONAL_PROPERTIES,
                     LOGIC_SHARD_ENABLED,
                     TABLE_READ_THREADS,
                     LOG_MINING_ARCHIVE_LOG_HOURS,
@@ -664,6 +688,8 @@ public class YashanDBConnectorConfig extends HistorizedRelationalDatabaseConnect
     private final int yStreamQueueSize;
     private final int yStreamPollTimeout;
     private final int yStreamClientResponseTimeout;
+    private final boolean yStreamFaultTolerance;
+    private final List<String> yStreamAdditionalProperties;
     private final Boolean logicShardEnabled;
     private final int tableReadThreads;
 
@@ -721,6 +747,8 @@ public class YashanDBConnectorConfig extends HistorizedRelationalDatabaseConnect
         this.yStreamPollTimeout = config.getInteger(YSTREAM_POLL_TIMEOUT);
         this.yStreamQueueSize = config.getInteger(YSTREAM_QUEUE_SIZE);
         this.yStreamClientResponseTimeout = config.getInteger(YSTREAM_CLIENT_RESPONSE_TIMEOUT);
+        this.yStreamFaultTolerance = config.getBoolean(YSTREAM_FAULT_TOLERANCE);
+        this.yStreamAdditionalProperties = Collections.unmodifiableList(config.getList(YSTREAM_ADDITIONAL_PROPERTIES));
 
         // Shard
         this.logicShardEnabled = config.getBoolean(LOGIC_SHARD_ENABLED);
@@ -765,6 +793,14 @@ public class YashanDBConnectorConfig extends HistorizedRelationalDatabaseConnect
 
     public int getyStreamClientResponseTimeout() {
         return yStreamClientResponseTimeout;
+    }
+
+    public boolean getYstreamFaultTolerance() {
+        return yStreamFaultTolerance;
+    }
+
+    public List<String> getYstreamAdditionalProperties() {
+        return yStreamAdditionalProperties;
     }
 
     public Boolean getLogicShardEnabled() {
