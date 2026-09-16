@@ -103,20 +103,31 @@ public class YStreamStreamingChangeEventSource implements StreamingChangeEventSo
             try {
                 // 1. connect
                 ystreamClientBoot = YstreamClientBoot.getClient();
-                ystreamClientBoot.open(
-                        YstreamConfig.<YStreamRecord> builder()
-                                .setHost(jdbcConnection.config().getHostname())
-                                .setPort(String.valueOf(jdbcConnection.config().getPort()))
-                                .setUser(jdbcConnection.config().getUser())
-                                .setPassword(jdbcConnection.config().getPassword())
-                                .setDeserializer(new YStreamDeserializer())
-                                .setRecoverPosition(offsetContext.getRecoverPosition())
-                                .setStartMode(StartMode.RECOVER)
-                                .setPollTimeout(connectorConfig.getyStreamPollTimeout())
-                                .setClientResponseTimeout(connectorConfig.getyStreamClientResponseTimeout())
-                                .setQueueSize(connectorConfig.getyStreamQueueSize())
-                                .setServerName(yStreamServerName)
-                                .build());
+                YstreamConfig.Builder<YStreamRecord> ystreamConfigBuilder = YstreamConfig.builder();
+                YStreamConfigBuilder.apply(ystreamConfigBuilder, connectorConfig.getYstreamAdditionalProperties());
+                ystreamConfigBuilder.setHost(jdbcConnection.config().getHostname())
+                        .setPort(String.valueOf(jdbcConnection.config().getPort()))
+                        .setUser(jdbcConnection.config().getUser())
+                        .setPassword(jdbcConnection.config().getPassword())
+                        .setDeserializer(new YStreamDeserializer())
+                        .setRecoverPosition(offsetContext.getRecoverPosition())
+                        .setStartMode(StartMode.RECOVER)
+                        .setPollTimeout(connectorConfig.getyStreamPollTimeout())
+                        .setClientResponseTimeout(connectorConfig.getyStreamClientResponseTimeout())
+                        .setQueueSize(connectorConfig.getyStreamQueueSize())
+                        .setServerName(yStreamServerName)
+                        .setFaultTolerance(connectorConfig.getYstreamFaultTolerance());
+                YstreamConfig<YStreamRecord> ystreamConfig = ystreamConfigBuilder.build();
+                LOGGER.info("Built YStream config: serverName={}, host={}, port={}, user={}, password=******, database={}, "
+                        + "queueSize={}, startMode={}, recoverPosition={}, pollTimeout={}, clientResponseTimeout={}, "
+                        + "faultTolerance={}, enableSequenceNextVal={}, mysqlMode={}, deserializer={}",
+                        ystreamConfig.getServerName(), ystreamConfig.getHost(), ystreamConfig.getPort(), ystreamConfig.getUser(),
+                        ystreamConfig.getDatabase(), ystreamConfig.getQueueSize(), ystreamConfig.getStartMode(),
+                        ystreamConfig.getRecoverPosition(), ystreamConfig.getPollTimeout(),
+                        ystreamConfig.getClientResponseTimeout(), ystreamConfig.getFaultTolerance(),
+                        ystreamConfig.isEnableSequenceNextVal(), ystreamConfig.isMysqlMode(),
+                        ystreamConfig.getDeserializer().getClass().getName());
+                ystreamClientBoot.open(ystreamConfig);
 
                 // 2. receive events while running
                 while (context.isRunning()) {
