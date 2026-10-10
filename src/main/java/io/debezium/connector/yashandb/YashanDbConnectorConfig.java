@@ -239,6 +239,33 @@ public class YashanDbConnectorConfig extends HistorizedRelationalDatabaseConnect
             .withDescription(
                     "Number of read threads per table.Default 1 thread.");
 
+    /**
+     * Enables fault-tolerant processing of the YStream client. When enabled, the connector passes the flag through to the
+     * client via {@code setFaultTolerance}, allowing the client to recover from transient errors instead of failing the
+     * streaming task.
+     */
+    public static final Field YSTREAM_FAULT_TOLERANCE = Field.create("ystream.fault.tolerance")
+            .withDisplayName("YashanDB YStream fault tolerance")
+            .withType(Type.BOOLEAN)
+            .withWidth(Width.MEDIUM)
+            .withImportance(Importance.LOW)
+            .withDefault(false)
+            .withDescription("Whether the YStream client should enable fault-tolerant processing.");
+
+    /**
+     * Additional YStream builder options. Entries use the form {@code option.name=value}; the option name is mapped to
+     * the corresponding YStream builder setter (for example, {@code enable.sequence.next.val=true} maps to
+     * {@code setEnableSequenceNextVal(true)}). This keeps connector code independent from new YStream builder options.
+     */
+    public static final Field YSTREAM_ADDITIONAL_PROPERTIES = Field.create("ystream.additional.properties")
+            .withDisplayName("Additional YStream options")
+            .withType(Type.LIST)
+            .withWidth(Width.LONG)
+            .withImportance(Importance.LOW)
+            .withDefault("")
+            .withDescription("Additional YStream builder options as comma-separated name=value entries. Explicit connector "
+                    + "settings take precedence when the same option is configured in both places.");
+
     private static final ConfigDefinition CONFIG_DEFINITION = HistorizedRelationalDatabaseConnectorConfig.CONFIG_DEFINITION.edit()
             .name("YashanDB")
             .excluding(
@@ -262,6 +289,7 @@ public class YashanDbConnectorConfig extends HistorizedRelationalDatabaseConnect
             .group(Field.Group.CONNECTOR_ADVANCED,
                     YSTREAM_CLIENT_RESPONSE_TIMEOUT, YSTREAM_POLL_TIMEOUT, YSTREAM_QUEUE_SIZE,
                     YSTREAM_RETRY_MAX_ATTEMPTS, YSTREAM_RETRY_BACKOFF_MS, YSTREAM_RETRY_WINDOW_MS,
+                    YSTREAM_FAULT_TOLERANCE, YSTREAM_ADDITIONAL_PROPERTIES,
                     LOGIC_SHARD_ENABLED, TABLE_READ_THREADS, LOB_ENABLED)
             .group(Field.Group.CONNECTOR, SOURCE_INFO_STRUCT_MAKER)
             .create();
@@ -307,6 +335,10 @@ public class YashanDbConnectorConfig extends HistorizedRelationalDatabaseConnect
     private final int tableReadThreads;
     private final boolean legacyDecimalHandlingStrategy;
     private final int snapshotRetryDatabaseErrorsMaxRetries;
+    // Passed through to the YStream client via setFaultTolerance, see buildYStreamConfig
+    private final boolean yStreamFaultTolerance;
+    // Additional YStream builder options in name=value form, resolved to builder setters by YStreamConfigBuilder
+    private final List<String> yStreamAdditionalProperties;
 
     /**
      * Creates a new connector configuration.
@@ -342,6 +374,8 @@ public class YashanDbConnectorConfig extends HistorizedRelationalDatabaseConnect
         this.yStreamRetryMaxAttempts = config.getInteger(YSTREAM_RETRY_MAX_ATTEMPTS);
         this.yStreamRetryBackoffMs = config.getLong(YSTREAM_RETRY_BACKOFF_MS);
         this.yStreamRetryWindowMs = config.getLong(YSTREAM_RETRY_WINDOW_MS);
+        this.yStreamFaultTolerance = config.getBoolean(YSTREAM_FAULT_TOLERANCE);
+        this.yStreamAdditionalProperties = Collections.unmodifiableList(config.getList(YSTREAM_ADDITIONAL_PROPERTIES));
 
         // Shard
         this.logicShardEnabled = config.getBoolean(LOGIC_SHARD_ENABLED);
@@ -461,6 +495,24 @@ public class YashanDbConnectorConfig extends HistorizedRelationalDatabaseConnect
      */
     public long getYStreamRetryWindowMs() {
         return yStreamRetryWindowMs;
+    }
+
+    /**
+     * Returns whether fault-tolerant processing of the YStream client is enabled.
+     *
+     * @return true if fault tolerance is enabled, false otherwise
+     */
+    public boolean getYstreamFaultTolerance() {
+        return yStreamFaultTolerance;
+    }
+
+    /**
+     * Returns the additional YStream builder options configured as {@code name=value} entries.
+     *
+     * @return the unmodifiable list of additional YStream builder options, empty when none are configured
+     */
+    public List<String> getYstreamAdditionalProperties() {
+        return yStreamAdditionalProperties;
     }
 
     /**
