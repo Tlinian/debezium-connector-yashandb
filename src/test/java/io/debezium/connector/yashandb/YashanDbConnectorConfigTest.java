@@ -6,6 +6,7 @@
 package io.debezium.connector.yashandb;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 
 import java.util.List;
 
@@ -13,10 +14,12 @@ import org.apache.kafka.common.config.ConfigDef;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
+import io.debezium.config.Configuration;
 import io.debezium.config.Field;
 import io.debezium.connector.yashandb.YashanDbConnectorConfig.IntervalHandlingMode;
 import io.debezium.connector.yashandb.YashanDbConnectorConfig.SnapshotLockingMode;
 import io.debezium.connector.yashandb.YashanDbConnectorConfig.SnapshotMode;
+import io.debezium.relational.history.SchemaHistoryMetrics;
 
 /**
  * Unit tests for {@link YashanDbConnectorConfig} and its nested enums.
@@ -200,6 +203,19 @@ class YashanDbConnectorConfigTest {
     // -----------------------------------------------------------------------
     @Nested
     class ConnectorConfigTests {
+
+        @Test
+        void shouldUseSinglePartitionMetricsInMySqlModeWithoutTaskId() {
+            Configuration configuration = Configuration.create()
+                    .with("topic.prefix", "mysql_test")
+                    .build();
+            YashanDbConnectorConfig config = new YashanDbConnectorConfig(configuration, new YashanDbModeContext(true));
+
+            assertThat(config.getModeContext().isMySql()).isTrue();
+            assertThat(config.multiPartitionMode()).isFalse();
+            assertThat(config.getTaskId()).isNull();
+            assertThatCode(() -> new SchemaHistoryMetrics(config, config.multiPartitionMode())).doesNotThrowAnyException();
+        }
 
         @Test
         void shouldHaveExcludedSchemas() {

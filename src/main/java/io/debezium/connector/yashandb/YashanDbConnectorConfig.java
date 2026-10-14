@@ -339,6 +339,7 @@ public class YashanDbConnectorConfig extends HistorizedRelationalDatabaseConnect
     private final boolean yStreamFaultTolerance;
     // Additional YStream builder options in name=value form, resolved to builder setters by YStreamConfigBuilder
     private final List<String> yStreamAdditionalProperties;
+    private final YashanDbModeContext modeContext;
 
     /**
      * Creates a new connector configuration.
@@ -346,16 +347,21 @@ public class YashanDbConnectorConfig extends HistorizedRelationalDatabaseConnect
      * @param config the configuration properties
      */
     public YashanDbConnectorConfig(Configuration config) {
+        this(config, new YashanDbModeContext(false));
+    }
+
+    public YashanDbConnectorConfig(Configuration config, YashanDbModeContext modeContext) {
         super(
                 YashanDbConnector.class, config,
-                new SystemTablesPredicate(config),
+                new SystemTablesPredicate(config, modeContext),
                 x -> x.schema() + "." + x.table(),
                 false,
                 DEFAULT_QUERY_FETCH_SIZE,
-                ColumnFilterMode.SCHEMA,
+                modeContext.isMySql() ? ColumnFilterMode.CATALOG : ColumnFilterMode.SCHEMA,
                 false);
 
-        this.databaseName = toUpperCase(config.getString(DATABASE_NAME));
+        this.modeContext = modeContext;
+        this.databaseName = modeContext.isMySql() ? config.getString(DATABASE_NAME) : toUpperCase(config.getString(DATABASE_NAME));
         this.intervalHandlingMode = IntervalHandlingMode.parse(config.getString(INTERVAL_HANDLING_MODE));
         this.snapshotMode = SnapshotMode.parse(config.getString(SNAPSHOT_MODE));
         this.snapshotEnhancementToken = config.getString(SNAPSHOT_ENHANCEMENT_TOKEN);
@@ -396,6 +402,10 @@ public class YashanDbConnectorConfig extends HistorizedRelationalDatabaseConnect
      */
     public String getDatabaseName() {
         return databaseName;
+    }
+
+    public YashanDbModeContext getModeContext() {
+        return modeContext;
     }
 
     /**
@@ -790,8 +800,11 @@ public class YashanDbConnectorConfig extends HistorizedRelationalDatabaseConnect
 
         private final Configuration config;
 
-        SystemTablesPredicate(Configuration config) {
+        private final YashanDbModeContext modeContext;
+
+        SystemTablesPredicate(Configuration config, YashanDbModeContext modeContext) {
             this.config = config;
+            this.modeContext = modeContext;
         }
 
         @Override
@@ -801,7 +814,7 @@ public class YashanDbConnectorConfig extends HistorizedRelationalDatabaseConnect
         }
 
         private boolean isExcludedSchema(TableId id) {
-            return EXCLUDED_SCHEMAS.contains(id.schema());
+            return EXCLUDED_SCHEMAS.contains(modeContext.isMySql() ? id.catalog() : id.schema());
         }
     }
 
