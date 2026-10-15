@@ -354,7 +354,7 @@ public class YashanDbConnectorConfig extends HistorizedRelationalDatabaseConnect
         super(
                 YashanDbConnector.class, config,
                 new SystemTablesPredicate(config, modeContext),
-                x -> x.schema() + "." + x.table(),
+                x -> (modeContext.isMySql() ? x.catalog() : x.schema()) + "." + x.table(),
                 false,
                 DEFAULT_QUERY_FETCH_SIZE,
                 modeContext.isMySql() ? ColumnFilterMode.CATALOG : ColumnFilterMode.SCHEMA,
