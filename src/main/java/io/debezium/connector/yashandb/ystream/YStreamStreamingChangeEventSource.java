@@ -235,7 +235,7 @@ public class YStreamStreamingChangeEventSource implements StreamingChangeEventSo
     /**
      * Builds the YStream client configuration used when opening the streaming connection.
      *
-     * <p>Additional YStream properties ({@code ystream.additional.properties}) are applied to the builder first, followed
+     * <p>Additional YStream properties ({@code ystream.additional.properties.*}) are applied to the builder first, followed
      * by the dedicated connector settings below, so the latter take precedence when the same option is configured in both
      * places.</p>
      *

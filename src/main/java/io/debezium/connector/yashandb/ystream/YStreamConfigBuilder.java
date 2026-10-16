@@ -8,7 +8,6 @@ package io.debezium.connector.yashandb.ystream;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
@@ -26,23 +25,22 @@ public final class YStreamConfigBuilder {
     }
 
     /**
-     * Applies the given {@code name=value} entries to the YStream builder and returns it for chaining.
+     * Applies the given option names and values to the YStream builder and returns it for chaining.
      *
-     * <p>Each entry is parsed as {@code name=value}; null or blank entries are skipped, malformed or duplicate
-     * entries are rejected with an {@link IllegalArgumentException}. The name is resolved to the builder's single-argument
-     * {@code setXxx} method at runtime and the value is converted to the setter's parameter type.</p>
+     * <p>Option names are resolved to the builder's single-argument {@code setXxx} methods at runtime and values are
+     * converted to the setter's parameter type. Duplicate aliases and empty names are rejected.</p>
      *
      * <p>Callers set the remaining builder options after this method so that dedicated connector settings take
      * precedence over the additional properties.</p>
      *
      * @param builder the YStream builder to configure, must not be null
-     * @param entries the list of {@code name=value} entries, may be empty
+     * @param properties the option names and values, may be empty
      * @param <T> the record type of the builder
      * @return the configured builder, for method chaining
-     * @throws IllegalArgumentException if an entry is malformed, duplicated, or names an unavailable option
+     * @throws IllegalArgumentException if an option is duplicated or unavailable
      */
-    public static <T> YstreamConfig.Builder<T> apply(YstreamConfig.Builder<T> builder, List<String> entries) {
-        Map<String, String> options = parse(entries);
+    public static <T> YstreamConfig.Builder<T> apply(YstreamConfig.Builder<T> builder, Map<String, String> properties) {
+        Map<String, String> options = validate(properties);
         for (Map.Entry<String, String> option : options.entrySet()) {
             apply(builder, option.getKey(), option.getValue());
         }
@@ -50,8 +48,8 @@ public final class YStreamConfigBuilder {
     }
 
     /** Returns the configured YStream MySQL mode before a complete client config can be built. */
-    public static boolean mysqlMode(List<String> entries) {
-        for (Map.Entry<String, String> option : parse(entries).entrySet()) {
+    public static boolean mysqlMode(Map<String, String> properties) {
+        for (Map.Entry<String, String> option : validate(properties).entrySet()) {
             if (normalizedName(option.getKey()).equals("mysqlmode")) {
                 return (boolean) convert(option.getValue(), boolean.class);
             }
@@ -59,26 +57,22 @@ public final class YStreamConfigBuilder {
         return false;
     }
 
-    private static Map<String, String> parse(List<String> entries) {
+    private static Map<String, String> validate(Map<String, String> properties) {
         Map<String, String> options = new LinkedHashMap<>();
         Map<String, String> names = new LinkedHashMap<>();
-        for (String entry : entries) {
-            if (entry == null || entry.trim().isEmpty()) {
-                continue;
-            }
-            int separator = entry.indexOf('=');
-            if (separator <= 0) {
-                throw new IllegalArgumentException("YStream additional property must use name=value syntax: " + entry);
-            }
-            String name = entry.substring(0, separator).trim();
-            String value = entry.substring(separator + 1).trim();
-            if (name.isEmpty()) {
+        for (Map.Entry<String, String> property : properties.entrySet()) {
+            String name = property.getKey();
+            if (name == null || name.trim().isEmpty()) {
                 throw new IllegalArgumentException("YStream additional property name must not be empty");
             }
+            name = name.trim();
             if (names.putIfAbsent(normalizedName(name), name) != null) {
                 throw new IllegalArgumentException("Duplicate YStream additional property: " + name);
             }
-            options.put(name, value);
+            if (property.getValue() == null) {
+                throw new IllegalArgumentException("YStream additional property value must not be null: " + name);
+            }
+            options.put(name, property.getValue().trim());
         }
         return options;
     }
