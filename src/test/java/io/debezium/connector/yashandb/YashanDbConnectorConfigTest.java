@@ -7,6 +7,7 @@ package io.debezium.connector.yashandb;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.List;
 
@@ -203,6 +204,32 @@ class YashanDbConnectorConfigTest {
     // -----------------------------------------------------------------------
     @Nested
     class ConnectorConfigTests {
+
+        @Test
+        void shouldSelectModeFromYStreamProperty() {
+            Configuration nativeConfig = Configuration.create().with("topic.prefix", "native_test").build();
+            Configuration mysqlConfig = Configuration.create()
+                    .with("topic.prefix", "mysql_test")
+                    .with("ystream.additional.properties", "mysql.mode=true")
+                    .build();
+
+            assertThat(new YashanDbConnectorConfig(nativeConfig).getModeContext().isMySql()).isFalse();
+            YashanDbConnectorConfig selected = new YashanDbConnectorConfig(mysqlConfig);
+            assertThat(selected.getModeContext().isMySql()).isTrue();
+            assertThat(selected.getModeContext().dialect().name()).isEqualTo("mysql");
+        }
+
+        @Test
+        void shouldRejectInvalidConfiguredMysqlMode() {
+            Configuration configuration = Configuration.create()
+                    .with("topic.prefix", "mysql_test")
+                    .with("ystream.additional.properties", "mysql.mode=invalid")
+                    .build();
+
+            assertThatThrownBy(() -> new YashanDbConnectorConfig(configuration))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("Expected true or false");
+        }
 
         @Test
         void shouldUseSinglePartitionMetricsInMySqlModeWithoutTaskId() {
