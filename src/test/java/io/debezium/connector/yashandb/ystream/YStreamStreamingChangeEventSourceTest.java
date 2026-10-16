@@ -91,7 +91,7 @@ class YStreamStreamingChangeEventSourceTest {
         when(connectorConfig.getYStreamRetryBackoffMs()).thenReturn(2_000L);
         when(connectorConfig.getYStreamRetryWindowMs()).thenReturn(180_000L);
         when(connectorConfig.getYstreamFaultTolerance()).thenReturn(false);
-        when(connectorConfig.getYstreamAdditionalProperties()).thenReturn(Collections.emptyList());
+        when(connectorConfig.getYstreamAdditionalProperties()).thenReturn(Collections.emptyMap());
         when(connectorConfig.getModeContext()).thenReturn(new YashanDbModeContext(false));
 
         Position position = new Position(new SystemChangeNumber(1L), new LogPosition());

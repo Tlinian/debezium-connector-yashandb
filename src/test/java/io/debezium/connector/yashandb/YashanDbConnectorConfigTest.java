@@ -210,7 +210,7 @@ class YashanDbConnectorConfigTest {
             Configuration nativeConfig = Configuration.create().with("topic.prefix", "native_test").build();
             Configuration mysqlConfig = Configuration.create()
                     .with("topic.prefix", "mysql_test")
-                    .with("ystream.additional.properties", "mysql.mode=true")
+                    .with("ystream.additional.properties.mysql.mode", "true")
                     .build();
 
             assertThat(new YashanDbConnectorConfig(nativeConfig).getModeContext().isMySql()).isFalse();
@@ -223,12 +223,29 @@ class YashanDbConnectorConfigTest {
         void shouldRejectInvalidConfiguredMysqlMode() {
             Configuration configuration = Configuration.create()
                     .with("topic.prefix", "mysql_test")
-                    .with("ystream.additional.properties", "mysql.mode=invalid")
+                    .with("ystream.additional.properties.mysql.mode", "invalid")
                     .build();
 
             assertThatThrownBy(() -> new YashanDbConnectorConfig(configuration))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessageContaining("Expected true or false");
+        }
+
+        @Test
+        void shouldExtractAdditionalYStreamPropertiesByPrefix() {
+            Configuration configuration = Configuration.create()
+                    .with("topic.prefix", "ystream_test")
+                    .with("ystream.additional.properties.mysql.mode", "true")
+                    .with("ystream.additional.properties.enable.sequence.next.val", "false")
+                    .with("ystream.additional.properties.custom.option", "value=1,2")
+                    .with("ystream.fault.tolerance", "true")
+                    .build();
+
+            YashanDbConnectorConfig config = new YashanDbConnectorConfig(configuration);
+
+            assertThat(config.getYstreamAdditionalProperties()).containsOnlyKeys(
+                    "mysql.mode", "enable.sequence.next.val", "custom.option");
+            assertThat(config.getYstreamAdditionalProperties().get("custom.option")).isEqualTo("value=1,2");
         }
 
         @Test
