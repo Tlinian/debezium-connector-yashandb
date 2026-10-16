@@ -42,7 +42,26 @@ public final class YStreamConfigBuilder {
      * @throws IllegalArgumentException if an entry is malformed, duplicated, or names an unavailable option
      */
     public static <T> YstreamConfig.Builder<T> apply(YstreamConfig.Builder<T> builder, List<String> entries) {
+        Map<String, String> options = parse(entries);
+        for (Map.Entry<String, String> option : options.entrySet()) {
+            apply(builder, option.getKey(), option.getValue());
+        }
+        return builder;
+    }
+
+    /** Returns the configured YStream MySQL mode before a complete client config can be built. */
+    public static boolean mysqlMode(List<String> entries) {
+        for (Map.Entry<String, String> option : parse(entries).entrySet()) {
+            if (normalizedName(option.getKey()).equals("mysqlmode")) {
+                return (boolean) convert(option.getValue(), boolean.class);
+            }
+        }
+        return false;
+    }
+
+    private static Map<String, String> parse(List<String> entries) {
         Map<String, String> options = new LinkedHashMap<>();
+        Map<String, String> names = new LinkedHashMap<>();
         for (String entry : entries) {
             if (entry == null || entry.trim().isEmpty()) {
                 continue;
@@ -56,15 +75,16 @@ public final class YStreamConfigBuilder {
             if (name.isEmpty()) {
                 throw new IllegalArgumentException("YStream additional property name must not be empty");
             }
-            if (options.put(name, value) != null) {
+            if (names.putIfAbsent(normalizedName(name), name) != null) {
                 throw new IllegalArgumentException("Duplicate YStream additional property: " + name);
             }
+            options.put(name, value);
         }
+        return options;
+    }
 
-        for (Map.Entry<String, String> option : options.entrySet()) {
-            apply(builder, option.getKey(), option.getValue());
-        }
-        return builder;
+    private static String normalizedName(String name) {
+        return name.replaceAll("[._-]", "").toLowerCase(Locale.ROOT);
     }
 
     /**
@@ -96,22 +116,18 @@ public final class YStreamConfigBuilder {
     /**
      * Finds the single-argument setter method matching the given option name on the builder class.
      *
-     * <p>The dotted option name is converted to a setter name in lower camel case, e.g. {@code enable.sequence.next.val}
-     * becomes {@code setEnableSequenceNextVal}.</p>
+     * <p>Separators and case are ignored when matching the option to a setter, so {@code enable.sequence.next.val}
+     * matches {@code setEnableSequenceNextVal}.</p>
      *
      * @param builderClass the builder class to search, including inherited public methods
      * @param optionName the option name in dotted form
      * @return the matching single-argument setter, or null if none exists
      */
     private static Method findSetter(Class<?> builderClass, String optionName) {
-        StringBuilder methodName = new StringBuilder("set");
-        for (String part : optionName.split("[.\\-_]")) {
-            if (!part.isEmpty()) {
-                methodName.append(Character.toUpperCase(part.charAt(0))).append(part.substring(1));
-            }
-        }
+        String normalizedOption = normalizedName(optionName);
         for (Method method : builderClass.getMethods()) {
-            if (method.getName().equals(methodName.toString()) && method.getParameterCount() == 1) {
+            if (method.getName().startsWith("set") && method.getParameterCount() == 1
+                    && normalizedName(method.getName().substring(3)).equals(normalizedOption)) {
                 return method;
             }
         }

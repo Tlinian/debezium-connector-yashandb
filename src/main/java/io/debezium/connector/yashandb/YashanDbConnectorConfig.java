@@ -26,6 +26,7 @@ import io.debezium.config.Field.ValidationOutput;
 import io.debezium.connector.AbstractSourceInfo;
 import io.debezium.connector.SourceInfoStructMaker;
 import io.debezium.connector.yashandb.ystream.YStreamAdapter;
+import io.debezium.connector.yashandb.ystream.YStreamConfigBuilder;
 import io.debezium.relational.ColumnFilterMode;
 import io.debezium.relational.HistorizedRelationalDatabaseConnectorConfig;
 import io.debezium.relational.RelationalDatabaseConnectorConfig;
@@ -263,8 +264,9 @@ public class YashanDbConnectorConfig extends HistorizedRelationalDatabaseConnect
             .withWidth(Width.LONG)
             .withImportance(Importance.LOW)
             .withDefault("")
-            .withDescription("Additional YStream builder options as comma-separated name=value entries. Explicit connector "
-                    + "settings take precedence when the same option is configured in both places.");
+            .withDescription("Additional YStream builder options as comma-separated name=value entries. Set mysql.mode=true "
+                    + "to enable MySQL mode for YStream, JDBC, and SQL syntax; the default is false. Explicit connector "
+                    + "settings take precedence for other options configured in both places.");
 
     private static final ConfigDefinition CONFIG_DEFINITION = HistorizedRelationalDatabaseConnectorConfig.CONFIG_DEFINITION.edit()
             .name("YashanDB")
@@ -347,7 +349,7 @@ public class YashanDbConnectorConfig extends HistorizedRelationalDatabaseConnect
      * @param config the configuration properties
      */
     public YashanDbConnectorConfig(Configuration config) {
-        this(config, new YashanDbModeContext(false));
+        this(config, new YashanDbModeContext(YStreamConfigBuilder.mysqlMode(config.getList(YSTREAM_ADDITIONAL_PROPERTIES))));
     }
 
     public YashanDbConnectorConfig(Configuration config, YashanDbModeContext modeContext) {
