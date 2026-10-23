@@ -26,12 +26,12 @@ public final class YashanDbNativeDialect implements YashanDbDialect {
 
     @Override
     public TableId tableId(String database, String schema, String table) {
-        return new TableId("", schema, table);
+        return new TableId(database, schema, table);
     }
 
     @Override
     public String qualifiedTableName(TableId tableId) {
-        return new TableId(null, tableId.schema(), tableId.table()).toDoubleQuotedString();
+        return new TableId(tableId.catalog(), tableId.schema(), tableId.table()).toDoubleQuotedString();
     }
 
     @Override

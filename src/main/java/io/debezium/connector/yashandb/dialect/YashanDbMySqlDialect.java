@@ -28,8 +28,7 @@ public final class YashanDbMySqlDialect implements YashanDbDialect {
 
     @Override
     public TableId tableId(String database, String schema, String table) {
-        String databaseName = schema == null || schema.isEmpty() ? database : schema;
-        return new TableId(null, databaseName, table);
+        return new TableId(database, schema, table);
     }
 
     @Override
