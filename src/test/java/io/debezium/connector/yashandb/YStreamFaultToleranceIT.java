@@ -28,6 +28,7 @@ import io.debezium.config.Configuration;
 import io.debezium.connector.yashandb.util.TestHelper;
 import io.debezium.data.Envelope;
 import io.debezium.data.VerifyRecord;
+import io.debezium.doc.FixFor;
 import io.debezium.embedded.async.AbstractAsyncEngineConnectorTest;
 import io.debezium.relational.RelationalDatabaseConnectorConfig;
 
@@ -86,6 +87,7 @@ public class YStreamFaultToleranceIT extends AbstractAsyncEngineConnectorTest {
     }
 
     @Test
+    @FixFor("debezium/dbz#2861")
     void shouldFailStreamingWhenUdtTableIsCapturedWithoutFaultTolerance() throws Exception {
         CountDownLatch completion = new CountDownLatch(1);
         AtomicBoolean completedSuccessfully = new AtomicBoolean(true);
@@ -111,6 +113,7 @@ public class YStreamFaultToleranceIT extends AbstractAsyncEngineConnectorTest {
     }
 
     @Test
+    @FixFor("debezium/dbz#2861")
     void shouldKeepStreamingWhenFaultToleranceIsEnabled() throws Exception {
         start(YashanDbConnector.class, streamingConfig(true));
         assertConnectorIsRunning();

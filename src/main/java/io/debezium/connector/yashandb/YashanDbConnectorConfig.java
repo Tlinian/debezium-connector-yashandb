@@ -267,7 +267,8 @@ public class YashanDbConnectorConfig extends HistorizedRelationalDatabaseConnect
 
     /**
      * Prefix for YStream builder options. For example, {@code ystream.additional.properties.enable.sequence.next.val=true}
-     * maps to {@code setEnableSequenceNextVal(true)}. This keeps connector code independent from new YStream builder options.
+     * maps to {@code setEnableSequenceNextVal(true)}. Credential-like options are rejected; use dedicated connector
+     * settings for connection credentials.
      */
     public static final String YSTREAM_ADDITIONAL_PROPERTIES_PREFIX = "ystream.additional.properties.";
 
@@ -388,6 +389,7 @@ public class YashanDbConnectorConfig extends HistorizedRelationalDatabaseConnect
         this.yStreamRetryWindowMs = config.getLong(YSTREAM_RETRY_WINDOW_MS);
         this.yStreamFaultTolerance = config.getBoolean(YSTREAM_FAULT_TOLERANCE);
         this.yStreamAdditionalProperties = additionalYStreamProperties(config);
+        YStreamConfigBuilder.validate(yStreamAdditionalProperties);
 
         // Shard
         this.logicShardEnabled = config.getBoolean(LOGIC_SHARD_ENABLED);

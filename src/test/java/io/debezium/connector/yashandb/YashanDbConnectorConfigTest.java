@@ -21,6 +21,7 @@ import io.debezium.connector.yashandb.YashanDbConnectorConfig.BigIntUnsignedHand
 import io.debezium.connector.yashandb.YashanDbConnectorConfig.IntervalHandlingMode;
 import io.debezium.connector.yashandb.YashanDbConnectorConfig.SnapshotLockingMode;
 import io.debezium.connector.yashandb.YashanDbConnectorConfig.SnapshotMode;
+import io.debezium.doc.FixFor;
 import io.debezium.relational.history.SchemaHistoryMetrics;
 
 /**
@@ -207,6 +208,66 @@ class YashanDbConnectorConfigTest {
     class ConnectorConfigTests {
 
         @Test
+        @FixFor("debezium/dbz#2861")
+        void shouldRejectInvalidConfiguredMysqlMode() {
+            Configuration configuration = Configuration.create()
+                    .with("topic.prefix", "mysql_test")
+                    .with("ystream.additional.properties.mysql.mode", "invalid")
+                    .build();
+
+            assertThatThrownBy(() -> new YashanDbConnectorConfig(configuration))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("Expected true or false");
+        }
+
+        @Test
+        @FixFor("debezium/dbz#2861")
+        void shouldRejectUnknownYStreamOptionDuringConfigConstruction() {
+            Configuration configuration = Configuration.create()
+                    .with("topic.prefix", "ystream_test")
+                    .with("ystream.additional.properties.mysql.mdoe", "true")
+                    .build();
+
+            assertThatThrownBy(() -> new YashanDbConnectorConfig(configuration))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("Unsupported YStream builder option 'mysql.mdoe'");
+        }
+
+        @Test
+        @FixFor("debezium/dbz#2861")
+        void shouldReportSensitiveYStreamOptionNameDuringConfigConstructionWithoutExposingItsValue() {
+            String sensitiveValue = "sensitive-password";
+            Configuration configuration = Configuration.create()
+                    .with("topic.prefix", "ystream_test")
+                    .with("ystream.additional.properties.password", sensitiveValue)
+                    .build();
+
+            assertThatThrownBy(() -> new YashanDbConnectorConfig(configuration))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessage("Sensitive YStream builder option 'password' cannot be configured through additional properties")
+                    .hasMessageNotContaining(sensitiveValue)
+                    .hasNoCause();
+        }
+
+        @Test
+        @FixFor("debezium/dbz#2861")
+        void shouldExtractAdditionalYStreamPropertiesByPrefix() {
+            Configuration configuration = Configuration.create()
+                    .with("topic.prefix", "ystream_test")
+                    .with("ystream.additional.properties.mysql.mode", "true")
+                    .with("ystream.additional.properties.enable.sequence.next.val", "false")
+                    .with("ystream.additional.properties.host", "value=1,2")
+                    .with("ystream.fault.tolerance", "true")
+                    .build();
+
+            YashanDbConnectorConfig config = new YashanDbConnectorConfig(configuration);
+
+            assertThat(config.getYstreamAdditionalProperties()).containsOnlyKeys(
+                    "mysql.mode", "enable.sequence.next.val", "host");
+            assertThat(config.getYstreamAdditionalProperties().get("host")).isEqualTo("value=1,2");
+        }
+
+        @Test
         void shouldConfigureUnsignedBigintHandling() {
             Configuration defaults = Configuration.create().with("topic.prefix", "test").build();
             Configuration longMode = Configuration.create()
@@ -244,35 +305,6 @@ class YashanDbConnectorConfigTest {
             YashanDbConnectorConfig selected = new YashanDbConnectorConfig(mysqlConfig);
             assertThat(selected.getModeContext().isMySql()).isTrue();
             assertThat(selected.getModeContext().dialect().name()).isEqualTo("mysql");
-        }
-
-        @Test
-        void shouldRejectInvalidConfiguredMysqlMode() {
-            Configuration configuration = Configuration.create()
-                    .with("topic.prefix", "mysql_test")
-                    .with("ystream.additional.properties.mysql.mode", "invalid")
-                    .build();
-
-            assertThatThrownBy(() -> new YashanDbConnectorConfig(configuration))
-                    .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessageContaining("Expected true or false");
-        }
-
-        @Test
-        void shouldExtractAdditionalYStreamPropertiesByPrefix() {
-            Configuration configuration = Configuration.create()
-                    .with("topic.prefix", "ystream_test")
-                    .with("ystream.additional.properties.mysql.mode", "true")
-                    .with("ystream.additional.properties.enable.sequence.next.val", "false")
-                    .with("ystream.additional.properties.custom.option", "value=1,2")
-                    .with("ystream.fault.tolerance", "true")
-                    .build();
-
-            YashanDbConnectorConfig config = new YashanDbConnectorConfig(configuration);
-
-            assertThat(config.getYstreamAdditionalProperties()).containsOnlyKeys(
-                    "mysql.mode", "enable.sequence.next.val", "custom.option");
-            assertThat(config.getYstreamAdditionalProperties().get("custom.option")).isEqualTo("value=1,2");
         }
 
         @Test

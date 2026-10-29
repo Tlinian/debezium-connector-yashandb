@@ -118,7 +118,7 @@ public class YStreamStreamingChangeEventSource implements StreamingChangeEventSo
         return YashanDbOffsetContext.create().logicalName(connectorConfig)
                 .snapshotPendingTransactions(Collections.emptyMap())
                 .transactionContext(new TransactionContext())
-                .incrementalSnapshotContext(new SignalBasedIncrementalSnapshotContext<>()).build();
+                .incrementalSnapshotContext(new SignalBasedIncrementalSnapshotContext<>(false)).build();
     }
 
     /**

@@ -7,11 +7,16 @@ package io.debezium.connector.yashandb.ystream;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 import com.sics.ystream.conf.YstreamConfig;
+
+import io.debezium.util.Strings;
 
 /**
  * Applies connector-configured options to a YStream builder.
@@ -21,6 +26,9 @@ import com.sics.ystream.conf.YstreamConfig;
  */
 public final class YStreamConfigBuilder {
 
+    private static final Set<String> SENSITIVE_OPTION_MARKERS = Set.of(
+            "password", "passwd", "pwd", "passphrase", "secret", "token", "credential", "privatekey", "apikey", "accesskey");
+
     private YStreamConfigBuilder() {
     }
 
@@ -28,7 +36,7 @@ public final class YStreamConfigBuilder {
      * Applies the given option names and values to the YStream builder and returns it for chaining.
      *
      * <p>Option names are resolved to the builder's single-argument {@code setXxx} methods at runtime and values are
-     * converted to the setter's parameter type. Duplicate aliases and empty names are rejected.</p>
+     * converted to the setter's parameter type. Duplicate aliases, empty names, and ambiguous setters are rejected.</p>
      *
      * <p>Callers set the remaining builder options after this method so that dedicated connector settings take
      * precedence over the additional properties.</p>
@@ -37,14 +45,24 @@ public final class YStreamConfigBuilder {
      * @param properties the option names and values, may be empty
      * @param <T> the record type of the builder
      * @return the configured builder, for method chaining
-     * @throws IllegalArgumentException if an option is duplicated or unavailable
+     * @throws IllegalArgumentException if an option is duplicated, unavailable, or matches multiple setters
      */
     public static <T> YstreamConfig.Builder<T> apply(YstreamConfig.Builder<T> builder, Map<String, String> properties) {
-        Map<String, String> options = validate(properties);
+        applyOptions(builder, properties);
+        return builder;
+    }
+
+    /**
+     * Validates and applies additional options to a builder through its single-argument setters.
+     *
+     * @param builder the target builder
+     * @param properties the option names and values, may be empty
+     */
+    static void applyOptions(Object builder, Map<String, String> properties) {
+        Map<String, String> options = normalizeProperties(properties);
         for (Map.Entry<String, String> option : options.entrySet()) {
             apply(builder, option.getKey(), option.getValue());
         }
-        return builder;
     }
 
     /** Returns the configured YStream MySQL mode before a complete client config can be built. */
@@ -57,15 +75,28 @@ public final class YStreamConfigBuilder {
         return false;
     }
 
-    private static Map<String, String> validate(Map<String, String> properties) {
+    /**
+     * Validates option names, values, and setters without opening a YStream connection.
+     *
+     * @param properties the option names and values, may be empty
+     */
+    public static void validate(Map<String, String> properties) {
+        apply(YstreamConfig.builder(), properties);
+    }
+
+    private static Map<String, String> normalizeProperties(Map<String, String> properties) {
         Map<String, String> options = new LinkedHashMap<>();
         Map<String, String> names = new LinkedHashMap<>();
         for (Map.Entry<String, String> property : properties.entrySet()) {
             String name = property.getKey();
-            if (name == null || name.trim().isEmpty()) {
+            if (Strings.isNullOrBlank(name)) {
                 throw new IllegalArgumentException("YStream additional property name must not be empty");
             }
             name = name.trim();
+            if (isSensitiveOption(name)) {
+                throw new IllegalArgumentException("Sensitive YStream builder option '" + name
+                        + "' cannot be configured through additional properties");
+            }
             if (names.putIfAbsent(normalizedName(name), name) != null) {
                 throw new IllegalArgumentException("Duplicate YStream additional property: " + name);
             }
@@ -75,6 +106,12 @@ public final class YStreamConfigBuilder {
             options.put(name, property.getValue().trim());
         }
         return options;
+    }
+
+    private static boolean isSensitiveOption(String name) {
+        String normalized = normalizedName(name);
+        return SENSITIVE_OPTION_MARKERS.stream().anyMatch(normalized::contains)
+                || normalized.endsWith("username") || normalized.endsWith("user");
     }
 
     private static String normalizedName(String name) {
@@ -94,38 +131,63 @@ public final class YStreamConfigBuilder {
         if (setter == null) {
             throw new IllegalArgumentException("Unsupported YStream builder option '" + optionName + "'");
         }
+        Object convertedValue;
         try {
-            setter.invoke(builder, convert(value, setter.getParameterTypes()[0]));
+            convertedValue = convert(value, setter.getParameterTypes()[0]);
         }
-        catch (IllegalAccessException e) {
-            throw new IllegalStateException("Cannot access YStream builder option '" + optionName + "'", e);
+        catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Invalid value for YStream builder option '" + optionName
+                    + "': " + expectedValue(setter.getParameterTypes()[0]));
         }
-        catch (InvocationTargetException e) {
-            Throwable cause = e.getCause() == null ? e : e.getCause();
-            throw new IllegalArgumentException("Invalid value for YStream builder option '" + optionName + "': " + value,
-                    cause);
+        try {
+            setter.invoke(builder, convertedValue);
         }
+        catch (IllegalArgumentException | IllegalAccessException | InvocationTargetException e) {
+            // Reflection and setter exceptions may include configured values. Do not expose the cause.
+            throw new IllegalArgumentException("Unable to apply YStream builder option '" + optionName + "'");
+        }
+    }
+
+    private static String expectedValue(Class<?> targetType) {
+        if (targetType == boolean.class || targetType == Boolean.class) {
+            return "Expected true or false";
+        }
+        if (targetType == char.class || targetType == Character.class) {
+            return "Expected a single character";
+        }
+        return "Expected a valid " + targetType.getSimpleName() + " value";
     }
 
     /**
      * Finds the single-argument setter method matching the given option name on the builder class.
      *
      * <p>Separators and case are ignored when matching the option to a setter, so {@code enable.sequence.next.val}
-     * matches {@code setEnableSequenceNextVal}.</p>
+     * matches {@code setEnableSequenceNextVal}. Multiple matching setters are rejected regardless of their parameter
+     * types or the order returned by reflection. Compiler-generated bridge and synthetic methods are ignored.</p>
      *
      * @param builderClass the builder class to search, including inherited public methods
      * @param optionName the option name in dotted form
      * @return the matching single-argument setter, or null if none exists
+     * @throws IllegalArgumentException if multiple setters match the option name
      */
     private static Method findSetter(Class<?> builderClass, String optionName) {
         String normalizedOption = normalizedName(optionName);
+        List<Method> matches = new ArrayList<>();
         for (Method method : builderClass.getMethods()) {
             if (method.getName().startsWith("set") && method.getParameterCount() == 1
+                    && !method.isBridge() && !method.isSynthetic()
                     && normalizedName(method.getName().substring(3)).equals(normalizedOption)) {
-                return method;
+                matches.add(method);
             }
         }
-        return null;
+        if (matches.isEmpty()) {
+            return null;
+        }
+        if (matches.size() > 1) {
+            throw new IllegalArgumentException("Ambiguous YStream builder option '" + optionName
+                    + "': multiple matching setters");
+        }
+        return matches.get(0);
     }
 
     /**
