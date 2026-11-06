@@ -142,10 +142,18 @@ class YStreamEventHandler {
                 processChunk((YstreamChunk) ystreamLcrInterface);
             }
             else if (ystreamLcrInterface instanceof YstreamXactBegin) {
+                LOGGER.debug("Processing begin event transactionId={}, commitScn={}, timestamp={}",
+                        ystreamLcrInterface.getTransactionId(),
+                        ((YstreamXactBegin) ystreamLcrInterface).getCommitScn().getScn(),
+                        ((YstreamXactBegin) ystreamLcrInterface).getCommitScn().getTimestamp());
                 dispatcher.dispatchTransactionStartedEvent(partition, String.valueOf(ystreamLcrInterface.getTransactionId()), offsetContext,
                         ((YstreamXactBegin) ystreamLcrInterface).getCommitScn().getTimestamp().toInstant());
             }
             else if (ystreamLcrInterface instanceof YstreamXactCommit) {
+                LOGGER.debug("Processing commit event transactionId={}, position={}, timestamp={}",
+                        ystreamLcrInterface.getTransactionId(),
+                        ystreamLcrInterface.getPosition(),
+                        ystreamLcrInterface.getPosition().getCommitScn().getTimestamp());
                 dispatcher.dispatchTransactionCommittedEvent(partition, offsetContext,
                         ystreamLcrInterface.getPosition().getCommitScn().getTimestamp().toInstant());
             }
@@ -186,7 +194,6 @@ class YStreamEventHandler {
     }
 
     private void dispatchDataChangeEvent(YStreamDataChangeRecord record, Map<String, Object> chunkValues) throws InterruptedException {
-        LOGGER.debug("Processing DML event {}", record.getYstreamDml());
         boolean truncateTable = record.isTruncateTable();
         TableId tableId = getTableId(record);
 
@@ -251,17 +258,18 @@ class YStreamEventHandler {
                 YStreamChangeRecordEmitter.calculateColumnValues(oldValues, newValues, columnNamesPresentInAfter, tableFor);
                 // YStreamChangeRecordEmitter.calculateColumnValues(oldValues, newValues);
             }
-            dispatcher.dispatchDataChangeEvent(
-                    partition,
-                    tableId,
-                    new YStreamChangeRecordEmitter(
-                            connectorConfig,
-                            partition,
-                            offsetContext,
-                            record,
-                            tableFor,
-                            schema,
-                            clock, newValues, oldValues));
+            YStreamChangeRecordEmitter emitter = new YStreamChangeRecordEmitter(
+                    connectorConfig, partition, offsetContext, record, tableFor, schema, clock, newValues, oldValues);
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug("Processing DML event table={}, primaryKey={}, op={}, transactionId={}, position={}, timestamp={}",
+                        tableId,
+                        primaryKeyValues(tableFor, newValues, oldValues),
+                        emitter.getOperation().code(),
+                        truncateTable ? record.getyStreamTruncate().getTransactionId() : record.getYstreamDml().getTransactionId(),
+                        truncateTable ? record.getyStreamTruncate().getPosition() : record.getYstreamDml().getPosition(),
+                        truncateTable ? record.getyStreamTruncate().getCurrentScn().getTimestamp() : record.getYstreamDml().getCurrentScn().getTimestamp());
+            }
+            dispatcher.dispatchDataChangeEvent(partition, tableId, emitter);
         }
         catch (InterruptedException e) {
             throw e;
@@ -270,6 +278,20 @@ class YStreamEventHandler {
             printDiffMetadata(record, tableId);
             throw e;
         }
+    }
+
+    private Map<String, Object> primaryKeyValues(Table table, Object[] newValues, Object[] oldValues) {
+        Map<String, Object> values = new LinkedHashMap<>();
+        for (String columnName : table.primaryKeyColumnNames()) {
+            Column column = table.columnWithName(columnName);
+            int index = column.position() - 1;
+            Object value = newValues != null ? newValues[index] : null;
+            if (value == null && oldValues != null) {
+                value = oldValues[index];
+            }
+            values.put(columnName, value);
+        }
+        return values;
     }
 
     private void printDiffMetadata(YStreamDataChangeRecord record, TableId tableId) {
@@ -316,7 +338,8 @@ class YStreamEventHandler {
     }
 
     private void dispatchSchemaChangeEvent(YstreamDdl ddl) throws InterruptedException {
-        LOGGER.debug("Processing DDL event {}", ddl.getDdlText());
+        LOGGER.debug("Processing DDL event table={}, transactionId={}, position={}, timestamp={}, ddl={}",
+                ddl.getTableId(), ddl.getTransactionId(), ddl.getPosition(), ddl.getCurrentScn().getTimestamp(), ddl.getDdlText());
 
         TableId tableId = getTableId(ddl);
 

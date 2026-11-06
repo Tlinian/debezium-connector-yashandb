@@ -13,6 +13,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
+import org.apache.kafka.clients.producer.RecordMetadata;
+import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,6 +25,7 @@ import io.debezium.config.Configuration;
 import io.debezium.config.Field;
 import io.debezium.connector.base.ChangeEventQueue;
 import io.debezium.connector.common.BaseSourceTask;
+import io.debezium.data.Envelope;
 import io.debezium.document.DocumentReader;
 import io.debezium.jdbc.DefaultMainConnectionProvidingConnectionFactory;
 import io.debezium.jdbc.JdbcConfiguration;
@@ -162,6 +165,24 @@ public class YashanDBConnectorTask extends BaseSourceTask<YashanDBPartition, Yas
                 .collect(Collectors.toList());
 
         return sourceRecords;
+    }
+
+    @Override
+    public void commitRecord(SourceRecord record, RecordMetadata metadata) throws InterruptedException {
+        super.commitRecord(record, metadata);
+        if (metadata != null && LOGGER.isDebugEnabled()) {
+            Struct value = record.value() instanceof Struct ? (Struct) record.value() : null;
+            Object sourceValue = fieldValue(value, Envelope.FieldName.SOURCE);
+            Struct source = sourceValue instanceof Struct ? (Struct) sourceValue : null;
+            Object transactionId = source == null ? fieldValue(value, "id") : fieldValue(source, SourceInfo.TXID_KEY);
+            LOGGER.debug("Kafka acknowledged record topic={}, partition={}, offset={}, timestamp={}, key={}, op={}, transactionId={}, sourceOffset={}",
+                    metadata.topic(), metadata.partition(), metadata.offset(), metadata.timestamp(),
+                    record.key(), fieldValue(value, Envelope.FieldName.OPERATION), transactionId, record.sourceOffset());
+        }
+    }
+
+    private static Object fieldValue(Struct struct, String fieldName) {
+        return struct != null && struct.schema().field(fieldName) != null ? struct.get(fieldName) : null;
     }
 
     @Override
