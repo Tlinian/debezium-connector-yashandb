@@ -17,6 +17,7 @@ import com.sics.ystream.result.Position;
 import com.sics.ystream.result.SystemChangeNumber;
 
 import io.debezium.connector.yashandb.Scn;
+import io.debezium.connector.yashandb.SourceInfo;
 import io.debezium.connector.yashandb.YashanDBOffsetContext;
 
 /**
@@ -34,7 +35,9 @@ public class YStreamPosition implements Comparable<YStreamPosition> {
     public YStreamPosition(Position rawPosition) {
         this.rawPosition = rawPosition;
         this.scn = new Scn(BigInteger.valueOf(rawPosition.getCommitScn().getScn()));
-        LOGGER.trace("LCR position {} converted to SCN", rawPosition);
+        if (LOGGER.isTraceEnabled()) {
+            LOGGER.trace("LCR pos={} scn={}", format(rawPosition), scn);
+        }
     }
 
     public static YStreamPosition valueOf(long scn) {
@@ -52,6 +55,24 @@ public class YStreamPosition implements Comparable<YStreamPosition> {
 
     public static YStreamPosition valueOf(Map<String, ?> offset) {
         return new YStreamPosition(Objects.requireNonNull(YashanDBOffsetContext.loadRecoverPosition(offset)));
+    }
+
+    public static String format(Position position) {
+        if (position == null) {
+            return null;
+        }
+        LogPosition logPosition = position.getLogPosition();
+        return position.getCommitScn().getScn() + "-" + logPosition.getInstanceId() + "-" + logPosition.getGroupLsn()
+                + "-" + logPosition.getGroupOffset() + "-" + logPosition.getBatchRowId();
+    }
+
+    public static String format(Map<String, ?> offset) {
+        if (offset == null || !offset.containsKey(SourceInfo.POSITION_SCN_KEY)) {
+            return null;
+        }
+        return offset.get(SourceInfo.POSITION_SCN_KEY) + "-" + offset.get(SourceInfo.INSTANCE_ID_KEY) + "-"
+                + offset.get(SourceInfo.GROUP_LSN_KEY) + "-" + offset.get(SourceInfo.GROUP_OFFSET_KEY) + "-"
+                + offset.get(SourceInfo.BATCH_ROW_ID_KEY);
     }
 
     public Position getRawPosition() {

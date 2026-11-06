@@ -25,6 +25,7 @@ import io.debezium.config.Configuration;
 import io.debezium.config.Field;
 import io.debezium.connector.base.ChangeEventQueue;
 import io.debezium.connector.common.BaseSourceTask;
+import io.debezium.connector.yashandb.ystream.YStreamPosition;
 import io.debezium.data.Envelope;
 import io.debezium.document.DocumentReader;
 import io.debezium.jdbc.DefaultMainConnectionProvidingConnectionFactory;
@@ -175,9 +176,9 @@ public class YashanDBConnectorTask extends BaseSourceTask<YashanDBPartition, Yas
             Object sourceValue = fieldValue(value, Envelope.FieldName.SOURCE);
             Struct source = sourceValue instanceof Struct ? (Struct) sourceValue : null;
             Object transactionId = source == null ? fieldValue(value, "id") : fieldValue(source, SourceInfo.TXID_KEY);
-            LOGGER.debug("Kafka acknowledged record topic={}, partition={}, offset={}, timestamp={}, key={}, op={}, transactionId={}, sourceOffset={}",
+            LOGGER.debug("Kafka ack topic={} p={} off={} t={} key={} op={} tid={} pos={}",
                     metadata.topic(), metadata.partition(), metadata.offset(), metadata.timestamp(),
-                    record.key(), fieldValue(value, Envelope.FieldName.OPERATION), transactionId, record.sourceOffset());
+                    record.key(), fieldValue(value, Envelope.FieldName.OPERATION), transactionId, YStreamPosition.format(record.sourceOffset()));
         }
     }
 

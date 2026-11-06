@@ -7,6 +7,8 @@ package io.debezium.connector.yashandb.ystream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.Map;
+
 import org.junit.jupiter.api.Test;
 
 import com.sics.ystream.result.LogPosition;
@@ -108,5 +110,24 @@ class YStreamPositionTest {
         Position rawPosition = new Position(new SystemChangeNumber(5555L), new LogPosition());
         YStreamPosition pos = new YStreamPosition(rawPosition);
         assertThat(pos.getScn().longValue()).isEqualTo(5555);
+    }
+
+    @Test
+    void shouldFormatPositionForEventLogs() {
+        Position position = new Position(new SystemChangeNumber(123123124L), new LogPosition((byte) 1, 234L, 23, 4444));
+
+        assertThat(YStreamPosition.format(position)).isEqualTo("123123124-1-234-23-4444");
+    }
+
+    @Test
+    void shouldFormatSourceOffsetForKafkaLogs() {
+        Map<String, Object> offset = Map.of(
+                "position_scn", 123123124L,
+                "instance_id", "1",
+                "group_lsn", 234L,
+                "group_offset", 23,
+                "batch_row_id", 4444);
+
+        assertThat(YStreamPosition.format(offset)).isEqualTo("123123124-1-234-23-4444");
     }
 }

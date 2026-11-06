@@ -6,6 +6,7 @@
 package io.debezium.connector.yashandb.ystream;
 
 import java.sql.SQLException;
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -94,12 +95,9 @@ class YStreamEventHandler {
                 YStreamPosition offsetLcrPosition = new YStreamPosition(offsetContext.getLcrPosition());
                 if (yStreamPosition.compareTo(offsetLcrPosition) < 0) {
                     if (LOGGER.isDebugEnabled()) {
-                        final YStreamPosition recPosition = offsetLcrPosition;
-                        LOGGER.debug("Ignoring change event with already processed SCN/LCR Position {}/{}, last recorded {}/{}",
-                                yStreamPosition,
-                                yStreamPosition.getRawPosition().getCommitScn().getScn(),
-                                recPosition,
-                                recPosition.getRawPosition().getCommitScn().getScn());
+                        LOGGER.debug("Skip pos={} last={}",
+                                YStreamPosition.format(yStreamPosition.getRawPosition()),
+                                YStreamPosition.format(offsetLcrPosition.getRawPosition()));
                     }
                     return;
                 }
@@ -142,20 +140,26 @@ class YStreamEventHandler {
                 processChunk((YstreamChunk) ystreamLcrInterface);
             }
             else if (ystreamLcrInterface instanceof YstreamXactBegin) {
-                LOGGER.debug("Processing begin event transactionId={}, commitScn={}, timestamp={}",
-                        ystreamLcrInterface.getTransactionId(),
-                        ((YstreamXactBegin) ystreamLcrInterface).getCommitScn().getScn(),
-                        ((YstreamXactBegin) ystreamLcrInterface).getCommitScn().getTimestamp());
+                Timestamp timestamp = ((YstreamXactBegin) ystreamLcrInterface).getCommitScn().getTimestamp();
+                if (LOGGER.isDebugEnabled()) {
+                    LOGGER.debug("Begin tid={} scn={} t={}",
+                            ystreamLcrInterface.getTransactionId(),
+                            ((YstreamXactBegin) ystreamLcrInterface).getCommitScn().getScn(),
+                            timestamp);
+                }
                 dispatcher.dispatchTransactionStartedEvent(partition, String.valueOf(ystreamLcrInterface.getTransactionId()), offsetContext,
-                        ((YstreamXactBegin) ystreamLcrInterface).getCommitScn().getTimestamp().toInstant());
+                        timestamp.toInstant());
             }
             else if (ystreamLcrInterface instanceof YstreamXactCommit) {
-                LOGGER.debug("Processing commit event transactionId={}, position={}, timestamp={}",
-                        ystreamLcrInterface.getTransactionId(),
-                        ystreamLcrInterface.getPosition(),
-                        ystreamLcrInterface.getPosition().getCommitScn().getTimestamp());
+                Timestamp timestamp = ystreamLcrInterface.getPosition().getCommitScn().getTimestamp();
+                if (LOGGER.isDebugEnabled()) {
+                    LOGGER.debug("Commit tid={} pos={} t={}",
+                            ystreamLcrInterface.getTransactionId(),
+                            YStreamPosition.format(ystreamLcrInterface.getPosition()),
+                            timestamp);
+                }
                 dispatcher.dispatchTransactionCommittedEvent(partition, offsetContext,
-                        ystreamLcrInterface.getPosition().getCommitScn().getTimestamp().toInstant());
+                        timestamp.toInstant());
             }
         }
         // nothing to be done here if interrupted; the event loop will be stopped in the streaming source
@@ -261,14 +265,15 @@ class YStreamEventHandler {
             YStreamChangeRecordEmitter emitter = new YStreamChangeRecordEmitter(
                     connectorConfig, partition, offsetContext, record, tableFor, schema, clock, newValues, oldValues);
             if (LOGGER.isDebugEnabled()) {
-                LOGGER.debug("Processing DML event table={}, primaryKey={}, op={}, transactionId={}, position={}, timestamp={}",
+                LOGGER.debug("DML table={} pk={} op={} tid={} pos={} t={}",
                         tableId,
                         primaryKeyValues(tableFor, newValues, oldValues),
                         emitter.getOperation().code(),
                         truncateTable ? record.getyStreamTruncate().getTransactionId() : record.getYstreamDml().getTransactionId(),
-                        truncateTable ? record.getyStreamTruncate().getPosition() : record.getYstreamDml().getPosition(),
+                        YStreamPosition.format(truncateTable ? record.getyStreamTruncate().getPosition() : record.getYstreamDml().getPosition()),
                         truncateTable ? record.getyStreamTruncate().getCurrentScn().getTimestamp() : record.getYstreamDml().getCurrentScn().getTimestamp());
             }
+
             dispatcher.dispatchDataChangeEvent(partition, tableId, emitter);
         }
         catch (InterruptedException e) {
@@ -338,8 +343,10 @@ class YStreamEventHandler {
     }
 
     private void dispatchSchemaChangeEvent(YstreamDdl ddl) throws InterruptedException {
-        LOGGER.debug("Processing DDL event table={}, transactionId={}, position={}, timestamp={}, ddl={}",
-                ddl.getTableId(), ddl.getTransactionId(), ddl.getPosition(), ddl.getCurrentScn().getTimestamp(), ddl.getDdlText());
+        if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug("DDL table={} tid={} pos={} t={} ddl={}",
+                    ddl.getTableId(), ddl.getTransactionId(), YStreamPosition.format(ddl.getPosition()), ddl.getCurrentScn().getTimestamp(), ddl.getDdlText());
+        }
 
         TableId tableId = getTableId(ddl);
 
@@ -421,14 +428,14 @@ class YStreamEventHandler {
         LOGGER.debug("Recording offsets to YashanDB");
         if (message.position != null) {
             if (LOGGER.isDebugEnabled()) {
-                LOGGER.debug("Recording position {}", message.position);
+                LOGGER.debug("Watermark pos={}", YStreamPosition.format(message.position.getRawPosition()));
             }
             eventSource.getYstreamClientBoot().setAppliedPosition(
                     message.position.getRawPosition());
         }
         else if (message.scn != null) {
             if (LOGGER.isDebugEnabled()) {
-                LOGGER.debug("Recording position with SCN {}", message.scn);
+                LOGGER.debug("Watermark scn={}", message.scn);
             }
         }
         else {
