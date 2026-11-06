@@ -173,20 +173,48 @@ public class YStreamAdapter extends AbstractStreamingAdapter {
             flashPointScn = connection.getCurrentScn();
         } while (areSameTimestamp(latestTableDdlScn.orElse(null), flashPointScn, connection));
 
-        Position position = new Position(
-                new SystemChangeNumber(flashPointScn.add(Scn.valueOf(1)).longValue()), new LogPosition());
+        // Only the automatic snapshot position advances by one; an explicit streaming SCN is exact.
+        final Optional<Scn> configuredScn = connectorConfig.getStreamingScn();
+        final Scn streamingScn = configuredScn.isPresent() ? configuredScn.get() : flashPointScn.add(Scn.valueOf(1));
+        Position recoverPosition = createRecoverPosition(connectorConfig, streamingScn);
 
         LOGGER.info("\tCurrent SCN resolved as {}", flashPointScn);
 
         return YashanDBOffsetContext.create()
                 .logicalName(connectorConfig)
                 .ystreamStartScn(currentScn1)
-                .recoverPosition(position)
+                .recoverPosition(recoverPosition)
                 .scn(flashPointScn)
                 .snapshotScn(flashPointScn)
                 .snapshotPendingTransactions(Collections.emptyMap())
                 .transactionContext(new TransactionContext())
                 .incrementalSnapshotContext(new SignalBasedIncrementalSnapshotContext<>())
                 .build();
+    }
+
+    /**
+     * Creates a streaming recovery position from an exact streaming SCN and the configured log position fields.
+     *
+     * @param connectorConfig the connector configuration
+     * @param streamingScn the exact streaming start SCN
+     * @return the recovery position
+     */
+    public static Position createRecoverPosition(YashanDBConnectorConfig connectorConfig, Scn streamingScn) {
+        Position recoverPosition = new Position(
+                new SystemChangeNumber(streamingScn.longValue()),
+                new LogPosition((byte) connectorConfig.getStreamingInstanceId(),
+                        connectorConfig.getStreamingGroupLsn(),
+                        connectorConfig.getStreamingGroupOffset(),
+                        connectorConfig.getStreamingBatchRowId()));
+
+        LOGGER.info("Generated streaming recovery position using connector configuration: "
+                        + "commitScn={}, instanceId={}, groupLsn={}, groupOffset={}, batchRowId={}",
+                recoverPosition.getCommitScn().getScn(),
+                recoverPosition.getLogPosition().getInstanceId(),
+                recoverPosition.getLogPosition().getGroupLsn(),
+                recoverPosition.getLogPosition().getGroupOffset(),
+                recoverPosition.getLogPosition().getBatchRowId());
+
+        return recoverPosition;
     }
 }
