@@ -94,12 +94,9 @@ class YStreamEventHandler {
                 // After a restart it may happen we get the event with the last processed LCR again
                 YStreamPosition offsetLcrPosition = new YStreamPosition(offsetContext.getLcrPosition());
                 if (yStreamPosition.compareTo(offsetLcrPosition) < 0) {
-                    if (LOGGER.isDebugEnabled()) {
-                        LOGGER.debug("Skip pos={} last={}",
-                                YStreamPosition.format(yStreamPosition.getRawPosition()),
-                                YStreamPosition.format(offsetLcrPosition.getRawPosition()));
-                    }
-                    return;
+                    LOGGER.info("tid={} pos={} last={}", record.getYstreamLcrInterface().getTransactionId(),
+                            YStreamPosition.format(yStreamPosition.getRawPosition()),
+                            YStreamPosition.format(offsetLcrPosition.getRawPosition()));
                 }
                 offsetContext.setScn(yStreamPosition.getScn());
                 offsetContext.setEventScn(yStreamPosition.getScn());
